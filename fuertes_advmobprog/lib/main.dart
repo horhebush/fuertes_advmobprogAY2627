@@ -1,109 +1,60 @@
-// =============================================================================
 // Lab Activity 1 - Ephemeral vs. App State
 // Jorge Fuertes | INF231
-//
-// This app demonstrates the two kinds of state in Flutter side by side:
-//
-//   Ephemeral (local) state -> managed with setState() inside a StatefulWidget.
-//                              Short-lived. Only the widget that owns it cares
-//                              about it, and it is lost when that widget is
-//                              disposed (e.g. navigating away and back).
-//
-//   App state               -> managed with Provider + ChangeNotifier.
-//                              Long-lived. Lives above the widget tree, so it
-//                              survives navigation and can be read or changed
-//                              from any screen in the app.
-// =============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-/// Entry point of the application.
-///
-/// The two ChangeNotifier providers are registered ABOVE MaterialApp using a
-/// MultiProvider. Registering them here (rather than inside a screen) is what
-/// makes their data app state: because they sit above the Navigator, pushing
-/// and popping screens never destroys them.
+// Entry point. The providers are placed above MaterialApp so their data is not
+// destroyed when we move between screens.
 void main() {
   runApp(
     MultiProvider(
       providers: [
-        // Holds the light/dark preference for the whole app.
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
-        // Holds the app-state counter that survives navigation.
-        ChangeNotifierProvider(create: (_) => CounterProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeModel()),
+        ChangeNotifierProvider(create: (_) => CounterModel()),
       ],
       child: const FuertesAdvMobProg(),
     ),
   );
 }
 
-// =============================================================================
-// APP STATE
-// =============================================================================
-
-/// App state #1: the theme preference.
-///
-/// Mixing in [ChangeNotifier] gives this plain Dart class the ability to tell
-/// listening widgets "my data changed, please rebuild" via notifyListeners().
-class ThemeProvider with ChangeNotifier {
-  // Private so no outside code can change it without going through
-  // toggleTheme(), which guarantees listeners are always notified.
+// Holds the dark/light preference for the whole app.
+class ThemeModel with ChangeNotifier {
   bool _isDark = false;
 
-  /// Read-only view of the current mode, exposed to the UI.
   bool get isDark => _isDark;
 
-  /// Flips between light and dark mode, then rebuilds every listening widget.
-  ///
-  /// Called from the switch on the Theme Settings screen. Because the theme is
-  /// app state, one tap here restyles every screen in the app at once.
+  // Switches the theme and tells the listening widgets to rebuild.
   void toggleTheme() {
     _isDark = !_isDark;
     notifyListeners();
   }
 }
 
-/// App state #2: a counter that deliberately contrasts with the ephemeral one.
-///
-/// This is the same idea as the setState counter on the home screen, but the
-/// value is stored here instead of inside the widget. That single difference is
-/// what makes it survive navigation - proving the ephemeral vs app state point.
-class CounterProvider with ChangeNotifier {
+// Holds a counter as app state, so it keeps its value across screens.
+class CounterModel with ChangeNotifier {
   int _count = 0;
 
-  /// Read-only view of the persisted count.
   int get count => _count;
 
-  /// Adds one to the app-state counter and rebuilds anything watching it.
   void increment() {
     _count++;
     notifyListeners();
   }
 
-  /// Returns the app-state counter to zero.
   void reset() {
     _count = 0;
     notifyListeners();
   }
 }
 
-// =============================================================================
-// ROOT WIDGET
-// =============================================================================
-
-/// Root widget of the app.
-///
-/// Stateless because it owns no data of its own - it only reads the app state
-/// from ThemeProvider to decide which ThemeData to hand to MaterialApp.
+// Root widget. Reads the theme from app state and passes it to MaterialApp.
 class FuertesAdvMobProg extends StatelessWidget {
   const FuertesAdvMobProg({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // context.watch<T>() subscribes this widget to the provider, so the whole
-    // MaterialApp rebuilds (and restyles) the moment the theme is toggled.
-    final themeProvider = context.watch<ThemeProvider>();
+    final themeModel = context.watch<ThemeModel>();
 
     return MaterialApp(
       title: 'Ephemeral vs App State',
@@ -118,21 +69,13 @@ class FuertesAdvMobProg extends StatelessWidget {
         brightness: Brightness.dark,
         useMaterial3: true,
       ),
-      // Driven entirely by app state.
-      themeMode: themeProvider.isDark ? ThemeMode.dark : ThemeMode.light,
+      themeMode: themeModel.isDark ? ThemeMode.dark : ThemeMode.light,
       home: const CounterScreen(),
     );
   }
 }
 
-// =============================================================================
-// SCREEN 1 - COUNTER
-// =============================================================================
-
-/// Screen 1 of 2: the counter screen.
-///
-/// StatefulWidget because it owns the ephemeral counter. A StatelessWidget
-/// cannot hold changing data, so setState() would not be available.
+// Screen 1: the counter. Stateful because it owns the ephemeral counter.
 class CounterScreen extends StatefulWidget {
   const CounterScreen({super.key});
 
@@ -141,44 +84,32 @@ class CounterScreen extends StatefulWidget {
 }
 
 class _CounterScreenState extends State<CounterScreen> {
-  /// EPHEMERAL STATE.
-  ///
-  /// Lives in the State object of this one screen. Nothing else in the app can
-  /// see it, and it resets to 0 whenever this screen is rebuilt from scratch.
+  // Ephemeral state. Stored in this State object only.
   int _ephemeralCount = 0;
 
-  /// Increments the ephemeral counter.
-  ///
-  /// setState() marks this widget dirty so Flutter re-runs build() with the new
-  /// value. Note it only rebuilds THIS widget - not the rest of the app.
+  // Adds one to the ephemeral counter and rebuilds this widget.
   void _incrementEphemeral() {
     setState(() {
       _ephemeralCount++;
     });
   }
 
-  /// Resets only the ephemeral counter back to zero.
+  // Sets the ephemeral counter back to zero.
   void _resetEphemeral() {
     setState(() {
       _ephemeralCount = 0;
     });
   }
 
-  /// Navigates to Screen 2, where the dark/light switch lives.
-  ///
-  /// Pushing a route does NOT destroy this screen, so the ephemeral counter is
-  /// still here on return. Use the "Replace screen" button to see it reset.
+  // Opens the theme settings screen.
   void _openSettings() {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const SettingsScreen()),
     );
   }
 
-  /// Replaces this screen with a brand new instance of itself.
-  ///
-  /// This is the clearest demonstration of the difference: the old State object
-  /// is disposed, so _ephemeralCount is destroyed and starts again at 0, while
-  /// the Provider-backed counter above the Navigator keeps its value.
+  // Replaces this screen with a new copy of itself. The old State object is
+  // thrown away, which is how we can see the ephemeral counter reset.
   void _replaceScreen() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const CounterScreen()),
@@ -187,15 +118,12 @@ class _CounterScreenState extends State<CounterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Read the app-state counter. watch() so this screen rebuilds when it
-    // changes, even if the change came from somewhere else in the app.
-    final counterProvider = context.watch<CounterProvider>();
+    final counterModel = context.watch<CounterModel>();
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Counter'),
         actions: [
-          // Opens Screen 2 (the theme toggle screen).
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Theme Settings',
@@ -205,13 +133,12 @@ class _CounterScreenState extends State<CounterScreen> {
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // ---------------------------------------------------------------
-              // Card A - the ephemeral counter
-              // ---------------------------------------------------------------
+              const _StateInfo(),
+              const SizedBox(height: 16),
               _CounterCard(
                 label: 'Ephemeral State',
                 helper: 'setState() - resets when this screen is rebuilt',
@@ -219,30 +146,40 @@ class _CounterScreenState extends State<CounterScreen> {
                 accent: Theme.of(context).colorScheme.primary,
                 onReset: _resetEphemeral,
               ),
-              const SizedBox(height: 16),
-
-              // ---------------------------------------------------------------
-              // Card B - the app-state counter
-              // ---------------------------------------------------------------
+              const SizedBox(height: 12),
               _CounterCard(
                 label: 'App State',
                 helper: 'Provider - survives navigation and screen rebuilds',
-                value: counterProvider.count,
+                value: counterModel.count,
                 accent: Theme.of(context).colorScheme.tertiary,
-                onReset: counterProvider.reset,
+                onReset: counterModel.reset,
               ),
-              const SizedBox(height: 24),
-
-              // Rebuilds this screen from scratch to prove the difference.
-              OutlinedButton.icon(
-                onPressed: _replaceScreen,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Rebuild this screen'),
+              const SizedBox(height: 16),
+              // One button raises both counters, so any difference in their
+              // values comes only from where each one is stored.
+              SizedBox(
+                width: 320,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    _incrementEphemeral();
+                    counterModel.increment();
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Increment'),
+                ),
               ),
               const SizedBox(height: 8),
+              SizedBox(
+                width: 320,
+                child: OutlinedButton.icon(
+                  onPressed: _replaceScreen,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Rebuild this screen'),
+                ),
+              ),
+              const SizedBox(height: 6),
               Text(
-                'Tap + a few times, then rebuild.\n'
-                'Ephemeral goes back to 0. App state does not.',
+                'Tap Increment a few times, then rebuild.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
@@ -250,25 +187,87 @@ class _CounterScreenState extends State<CounterScreen> {
           ),
         ),
       ),
-      // One button raises BOTH counters, so the only reason their values ever
-      // diverge is where each one is stored.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          _incrementEphemeral(); // ephemeral, via setState
-          counterProvider.increment(); // app state, via ChangeNotifier
-        },
-        tooltip: 'Increment both counters',
-        icon: const Icon(Icons.add),
-        label: const Text('Increment'),
+    );
+  }
+}
+
+// Short explanation of the two kinds of state, shown at the top of the screen.
+class _StateInfo extends StatelessWidget {
+  const _StateInfo();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: 320,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'State Management',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: 8),
+          _InfoLine(
+            title: 'Ephemeral state',
+            body: 'Data kept inside one widget using setState. Only that widget '
+                'can see it, and it is lost when the widget is rebuilt. Good for '
+                'small things like a counter or a checkbox.',
+            color: scheme.primary,
+          ),
+          const SizedBox(height: 8),
+          _InfoLine(
+            title: 'App state',
+            body: 'Data kept in a ChangeNotifier above the widget tree using '
+                'Provider. Any screen can read or change it and it survives '
+                'navigation. Good for the theme, a logged in user, or a cart.',
+            color: scheme.tertiary,
+          ),
+        ],
       ),
     );
   }
 }
 
-/// A small reusable card that displays one counter.
-///
-/// Pulled out into its own widget so the two counters are guaranteed to be
-/// presented identically - the only visible difference is the number itself.
+// One labelled paragraph inside the explanation box.
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({
+    required this.title,
+    required this.body,
+    required this.color,
+  });
+
+  final String title;
+  final String body;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        Text(body, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+// Displays one counter. Used for both so they look the same on screen.
 class _CounterCard extends StatelessWidget {
   const _CounterCard({
     required this.label,
@@ -278,19 +277,10 @@ class _CounterCard extends StatelessWidget {
     required this.onReset,
   });
 
-  /// Heading shown on the card, e.g. "Ephemeral State".
   final String label;
-
-  /// One-line explanation of how this counter is managed.
   final String helper;
-
-  /// The number to display.
   final int value;
-
-  /// Colour used for the heading and the big number.
   final Color accent;
-
-  /// Called when the card's reset button is tapped.
   final VoidCallback onReset;
 
   @override
@@ -299,15 +289,14 @@ class _CounterCard extends StatelessWidget {
       elevation: 2,
       child: Container(
         width: 320,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Expanded so a long heading yields space to the reset button
-                // instead of overflowing the row on narrow screens.
+                // Expanded so a long label does not overflow the row.
                 Expanded(
                   child: Text(
                     label,
@@ -317,7 +306,6 @@ class _CounterCard extends StatelessWidget {
                         ),
                   ),
                 ),
-                // Resets just this one counter.
                 IconButton(
                   icon: const Icon(Icons.restart_alt, size: 20),
                   tooltip: 'Reset $label',
@@ -326,7 +314,7 @@ class _CounterCard extends StatelessWidget {
               ],
             ),
             Text(helper, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Center(
               child: Text(
                 '$value',
@@ -343,67 +331,53 @@ class _CounterCard extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// SCREEN 2 - THEME SETTINGS
-// =============================================================================
-
-/// Screen 2 of 2: the theme toggle screen.
-///
-/// Stateless even though it contains a Switch. The switch's value is app state
-/// owned by ThemeProvider, so this widget has no local data to track - it just
-/// reads the provider and calls a method on it.
+// Screen 2: the theme toggle. Stateless because the switch reads app state.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Subscribe so the switch and label update the instant the theme flips.
-    final themeProvider = context.watch<ThemeProvider>();
-
-    // The app-state counter is readable here too - on a completely different
-    // screen - which is the whole point of lifting state into a provider.
-    final counterProvider = context.watch<CounterProvider>();
+    final themeModel = context.watch<ThemeModel>();
+    final counterModel = context.watch<CounterModel>();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Theme Settings')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              themeProvider.isDark ? 'Dark Mode ON' : 'Light Mode ON',
+              themeModel.isDark ? 'Dark Mode ON' : 'Light Mode ON',
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               'This switch changes the theme for every screen.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Card(
               child: SwitchListTile(
                 title: const Text('Dark Mode'),
                 subtitle: const Text('App state via Provider'),
                 secondary: Icon(
-                  themeProvider.isDark ? Icons.dark_mode : Icons.light_mode,
+                  themeModel.isDark ? Icons.dark_mode : Icons.light_mode,
                 ),
-                value: themeProvider.isDark,
-                // The underscore means we ignore the bool the Switch hands us
-                // and let the provider be the single source of truth.
-                onChanged: (_) => themeProvider.toggleTheme(),
+                value: themeModel.isDark,
+                onChanged: (_) => themeModel.toggleTheme(),
               ),
             ),
-            const SizedBox(height: 24),
-            // Proof that app state crosses screen boundaries.
+            const SizedBox(height: 16),
+            // The same counter value, read from a different screen.
             Card(
               child: ListTile(
                 leading: const Icon(Icons.pin),
                 title: const Text('App state counter'),
                 subtitle: const Text('Same value, read from another screen'),
                 trailing: Text(
-                  '${counterProvider.count}',
+                  '${counterModel.count}',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
