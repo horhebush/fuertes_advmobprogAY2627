@@ -7,18 +7,13 @@ import '../models/product.dart';
 // widgets
 import '../widgets/custom_text.dart';
 
-/// ENHANCEMENT 2 - the product details page.
-///
-/// Opened by tapping a card on the Shop tab. The [Product] is passed straight
-/// in through the constructor, so this screen renders from data the app already
-/// has and never issues a second network request.
-///
-/// Stateful only because the image carousel tracks which page is showing -
-/// ephemeral state that belongs to this screen alone.
+// ENHANCEMENT 2: the product details page, opened by tapping a card. The
+// product comes in through the constructor so no second API call is needed.
+// Stateful only because the image carousel tracks the current page.
 class ProductDetailsScreen extends StatefulWidget {
   const ProductDetailsScreen({super.key, required this.product});
 
-  /// The product to display, handed over by the grid.
+  // The product to show.
   final Product product;
 
   @override
@@ -26,10 +21,10 @@ class ProductDetailsScreen extends StatefulWidget {
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
-  /// Drives the image carousel.
+  // Controls the image carousel.
   final PageController _imageController = PageController();
 
-  /// Index of the visible image, used to highlight the matching dot.
+  // Which image is showing, used to highlight the matching dot.
   int _imageIndex = 0;
 
   @override
@@ -43,8 +38,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final product = widget.product;
     final scheme = Theme.of(context).colorScheme;
 
-    // Fall back to the thumbnail when the API returns no gallery images, so the
-    // carousel always has at least one page.
+    // Use the thumbnail if there are no gallery images.
     final images = product.images.isNotEmpty
         ? product.images
         : [product.thumbnail];
@@ -63,9 +57,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       body: ListView(
         padding: EdgeInsets.only(bottom: 24.h),
         children: [
-          // -------------------------------------------------------------------
-          // Image carousel
-          // -------------------------------------------------------------------
           SizedBox(
             height: 260.h,
             child: Stack(
@@ -86,7 +77,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     ),
                   ),
                 ),
-                // Dot indicators, drawn only when there is more than one image.
+                // Dots, only when there is more than one image.
                 if (images.length > 1)
                   Positioned(
                     bottom: 10.h,
@@ -121,9 +112,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ---------------------------------------------------------------
-                // Title, brand and category
-                // ---------------------------------------------------------------
                 CustomText(
                   text: product.title,
                   fontSize: 20.sp,
@@ -140,9 +128,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 12.h),
 
-                // ---------------------------------------------------------------
-                // Pricing - shows the struck-through original when discounted
-                // ---------------------------------------------------------------
+                // Price, with the original struck through when discounted.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -189,9 +175,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 12.h),
 
-                // ---------------------------------------------------------------
-                // Rating and availability
-                // ---------------------------------------------------------------
                 Row(
                   children: [
                     _StarRating(rating: product.rating),
@@ -218,9 +201,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 20.h),
 
-                // ---------------------------------------------------------------
-                // Description
-                // ---------------------------------------------------------------
                 _SectionTitle(title: 'Description'),
                 SizedBox(height: 6.h),
                 CustomText(
@@ -230,9 +210,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 20.h),
 
-                // ---------------------------------------------------------------
-                // Specifications pulled from the nested model objects
-                // ---------------------------------------------------------------
+                // Specifications, taken from the nested model objects.
                 _SectionTitle(title: 'Specifications'),
                 SizedBox(height: 6.h),
                 _SpecRow(label: 'SKU', value: product.sku),
@@ -252,9 +230,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   value: '${product.minimumOrderQuantity}',
                 ),
 
-                // ---------------------------------------------------------------
-                // Tags
-                // ---------------------------------------------------------------
                 if (product.tags.isNotEmpty) ...[
                   SizedBox(height: 20.h),
                   _SectionTitle(title: 'Tags'),
@@ -273,9 +248,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ),
                 ],
 
-                // ---------------------------------------------------------------
-                // Reviews from the nested reviews array
-                // ---------------------------------------------------------------
                 SizedBox(height: 20.h),
                 _SectionTitle(title: 'Reviews (${product.reviews.length})'),
                 SizedBox(height: 8.h),
@@ -286,8 +258,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     color: scheme.onSurfaceVariant,
                   )
                 else
-                  // Not a ListView: this is already inside a scrolling ListView,
-                  // so the reviews are simply mapped into the column.
+                  // Already inside a ListView, so just map the reviews in.
                   ...product.reviews.map(
                     (r) => Card(
                       margin: EdgeInsets.only(bottom: 8.h),
@@ -301,7 +272,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 _StarRating(rating: r.rating.toDouble()),
                                 const Spacer(),
                                 CustomText(
-                                  // Trim the ISO timestamp down to the date.
+                                  // Keep just the date part of the timestamp.
                                   text: r.date.length >= 10
                                       ? r.date.substring(0, 10)
                                       : r.date,
@@ -336,7 +307,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 }
 
-/// A bold heading used to separate sections of the details page.
+// Bold heading between sections.
 class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
 
@@ -352,10 +323,8 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// A label/value pair in the specifications list.
-///
-/// Renders nothing when [value] is empty, so absent API fields do not leave
-/// blank rows behind.
+// A label and value row in the specifications list. Shows nothing when the
+// value is empty so missing API fields do not leave blank rows.
 class _SpecRow extends StatelessWidget {
   const _SpecRow({required this.label, required this.value});
 
@@ -394,7 +363,7 @@ class _SpecRow extends StatelessWidget {
   }
 }
 
-/// Five stars, filled / half / empty according to [rating] out of 5.
+// Five stars, filled, half or empty based on the rating.
 class _StarRating extends StatelessWidget {
   const _StarRating({required this.rating});
 
@@ -405,7 +374,7 @@ class _StarRating extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
-        // Compare against i to decide full, half or empty for this position.
+        // Decide if this star is full, half or empty.
         final filled = rating >= i + 1;
         final half = !filled && rating > i;
         return Icon(

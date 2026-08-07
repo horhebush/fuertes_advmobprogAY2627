@@ -1,12 +1,7 @@
-// The MODEL layer.
-//
-// These classes are plain Dart objects that mirror the shape of the JSON the API
-// returns. Their only job is to turn an untyped Map<String, dynamic> into typed
-// Dart fields, so the rest of the app never touches raw JSON keys. Every
-// fromJson uses `?? fallback` so a missing or null field degrades to a safe
-// default instead of throwing at runtime.
+// Data classes that match the JSON returned by the API. Their job is to turn an
+// untyped map into typed fields so the rest of the app never reads JSON keys.
 
-/// A single product returned by `GET /products`.
+// One product from GET /products.
 class Product {
   final int id;
   final String title;
@@ -56,11 +51,9 @@ class Product {
     required this.thumbnail,
   });
 
-  /// Builds a [Product] from one decoded JSON object.
-  ///
-  /// Numeric fields are read `as num?` first and then converted, because JSON
-  /// gives back an int for a whole number like `5` and a double for `5.5` —
-  /// casting straight to double would crash on the former.
+  // Numbers are read as num first because the API sends 4 for a whole number
+  // and 9.99 for a decimal, and casting straight to double breaks on the first.
+  // The ?? defaults keep a missing field from crashing the app.
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'] ?? 0,
@@ -80,7 +73,6 @@ class Product {
       warrantyInformation: json['warrantyInformation'] ?? '',
       shippingInformation: json['shippingInformation'] ?? '',
       availabilityStatus: json['availabilityStatus'] ?? '',
-      // A list of nested objects: map each entry through its own fromJson.
       reviews: (json['reviews'] as List?)
               ?.map((e) => ProductReview.fromJson(e))
               .toList() ??
@@ -93,11 +85,11 @@ class Product {
     );
   }
 
-  /// Price after applying [discountPercentage], used on the details page.
+  // Price after the discount, shown on the details page.
   double get discountedPrice => price - (price * discountPercentage / 100);
 }
 
-/// Physical dimensions of a product, nested under the `dimensions` key.
+// Size of the product, nested under the dimensions key.
 class ProductDimensions {
   final double width;
   final double height;
@@ -118,7 +110,7 @@ class ProductDimensions {
   }
 }
 
-/// One customer review, nested in the `reviews` array.
+// One customer review from the reviews array.
 class ProductReview {
   final int rating;
   final String comment;
@@ -145,7 +137,7 @@ class ProductReview {
   }
 }
 
-/// Bookkeeping fields the API attaches to every product.
+// Extra info the API attaches to every product.
 class ProductMeta {
   final String createdAt;
   final String updatedAt;

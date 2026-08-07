@@ -4,9 +4,8 @@ Advanced Mobile Programming (INF231) laboratory activities.
 
 **Name:** Jorge Fuertes
 **Section:** INF231
-**School Year:** AY 2026-2027
 
-Flutter project: [`fuertes_advmobprog/`](fuertes_advmobprog/)
+Flutter project: `fuertes_advmobprog/`
 
 | Branch | Activity | Topic |
 | --- | --- | --- |
@@ -17,190 +16,93 @@ Flutter project: [`fuertes_advmobprog/`](fuertes_advmobprog/)
 
 ## Lab Activity 1: discussion
 
-**Topic: Ephemeral vs. App State**
+**Ephemeral state** is data kept inside one widget with `setState`. In this
+activity that is `_ephemeralCount` inside `_CounterScreenState`. Only that widget
+can see it, and it is thrown away when the widget is rebuilt.
 
-### The difference between `setState` and `Provider`
+**App state** is data kept in a `ChangeNotifier` registered with
+`ChangeNotifierProvider` above `MaterialApp`. Here that is `ThemeModel` for the
+theme and `CounterModel` for the second counter. Because the providers sit above
+the `Navigator`, pushing and popping screens does not destroy them, and any
+screen can read them with `context.watch`.
 
-Flutter splits state into two kinds, and the difference is really about *where the
-data lives* rather than what the data is.
+The app shows the difference with one Increment button that raises both counters
+at the same time. While the screen stays alive the two numbers match. Tapping
+**Rebuild this screen** calls `Navigator.pushReplacement`, which throws away the
+old `State` object, so the ephemeral counter goes back to 0 while the app state
+counter keeps its value.
 
-**Ephemeral (local) state** lives inside the `State` object of a single
-`StatefulWidget`. In this activity the ephemeral counter is the `_ephemeralCount`
-field inside `_CounterScreenState`. Calling `setState()` mutates that field and
-marks only that one widget as dirty, so Flutter re-runs just that widget's
-`build()` method. This is cheap and simple, but the value is completely private:
-no other screen can read it, and the moment the `State` object is disposed the
-value is gone forever.
+The theme is the second example. The switch is on a different screen, but
+flipping it restyles the whole app because `themeMode` is driven by
+`context.watch<ThemeModel>()`.
 
-**App state** lives above the widget tree in a `ChangeNotifier` that is registered
-with a `ChangeNotifierProvider`. In this activity there are two of them,
-`ThemeProvider` and `CounterProvider`, both registered in `main()` inside a
-`MultiProvider` that wraps `MaterialApp`. Because they sit *above* the
-`Navigator`, pushing and popping routes never destroys them. Any widget can reach
-them with `context.watch<T>()` (subscribe and rebuild on change) or
-`context.read<T>()` (one-off read without subscribing). When the data changes,
-`notifyListeners()` tells every subscribed widget to rebuild — even widgets on
-other screens.
+`setState` is the right choice for something only one widget cares about, like a
+checkbox or a text field. Provider is for data that more than one screen needs or
+that has to outlive the widget that made it, like the theme or a cart.
 
-### How the app proves it
-
-Both counters are incremented by the **same single button**, in the same callback:
-
-```dart
-onPressed: () {
-  _incrementEphemeral();       // ephemeral, via setState
-  counterProvider.increment(); // app state, via ChangeNotifier
-},
-```
-
-While the counter screen stays alive the two numbers are always identical. Tapping
-**Rebuild this screen** calls `Navigator.pushReplacement` with a fresh
-`CounterScreen`, which disposes the old `State` object. At that moment the numbers
-diverge: the ephemeral counter is back to `0` because its `State` was destroyed,
-while the app-state counter still shows its accumulated value because it never
-lived in the widget at all.
-
-The theme is the second demonstration. The dark/light switch lives on a *different
-screen* (`SettingsScreen`), yet flipping it restyles the entire app immediately,
-because `MaterialApp`'s `themeMode` is driven by `context.watch<ThemeProvider>()`.
-The settings screen also displays the app-state counter, showing the same value
-being read from a completely separate route.
-
-### When to use which
-
-Use `setState` for things only one widget cares about — whether a checkbox is
-ticked, the current page of a `PageView`, the text in a form field, an animation
-progress value. Reaching for Provider here just adds boilerplate.
-
-Use Provider (or another app-state solution) once two or more widgets need the
-same data, or when the data must outlive the widget that created it — the signed-in
-user, a shopping cart, the theme preference, cached API results. The rule of thumb
-is: if losing the value on navigation would be a bug, it is app state.
-
-### Screens
-
-1. **Counter** — two cards side by side (ephemeral and app state), one increment
-   button that raises both, per-card reset buttons, and a "Rebuild this screen"
-   button that demonstrates the difference.
-2. **Theme Settings** — the dark/light `SwitchListTile` backed by `ThemeProvider`,
-   plus the app-state counter read from this second screen.
+Screens: **Counter** (both counters plus a short explanation) and
+**Theme Settings** (the dark/light switch).
 
 ---
 
 ## Lab Activity 2: discussion
 
-**Topic: API — Demi Mart**
+Demi Mart lists products from the [dummyjson.com](https://dummyjson.com) API.
 
-A storefront that lists products fetched from the
-[dummyjson.com](https://dummyjson.com) REST API.
+### How the model, services and screen work together
 
-### How the model, service and screen interact to render the API endpoint
+`constants.dart` reads `HOST` from `assets/.env`, loaded in `main()` before
+`runApp`, so the URL is not hard coded.
 
-The request travels through four layers, and each one only knows about the layer
-directly beneath it:
+`ProductService` does the HTTP work. `getAllProducts()` calls
+`GET $host/products`, checks the status code, decodes the JSON, takes the
+`products` array and maps each entry through `Product.fromJson`. It returns a
+`List<Product>`, so nothing above it deals with JSON.
 
-**1. `constants.dart` — where the endpoint comes from.**
-`host` is read from `assets/.env` (`HOST=https://dummyjson.com`), loaded by
-`dotenv.load()` in `main()` before `runApp`. The URL is never hard-coded in a
-Dart file, so the API can be repointed without recompiling logic.
+`Product.fromJson` turns one map into typed fields, including the nested
+`ProductDimensions`, `ProductReview` and `ProductMeta`. Numbers are read as `num`
+first because the API sends `4` for a whole number and `9.99` for a decimal, and
+every field has a default so a missing key does not crash the app.
 
-**2. `services/product_service.dart` — the only layer that speaks HTTP.**
-`getAllProducts()` issues `GET $host/products`, checks `statusCode == 200`,
-`jsonDecode`s the body, pulls the `products` array out of the response envelope,
-and maps each entry through `Product.fromJson`. A non-200 response throws. What
-it returns is a `List<Product>` — no `Map`, no JSON, no `http` types leak upward.
+`ProductScreen` starts the request in `initState` and hands the `Future` to a
+`FutureBuilder`, which rebuilds as the request finishes. That covers all the
+states in one place: a spinner while loading, an error message with a Retry
+button if it fails, a message if nothing matched, and the grid on success. The
+screen never touches `http` or `jsonDecode`.
 
-**3. `models/product.dart` — the shape of the data.**
-`Product.fromJson` converts one untyped `Map<String, dynamic>` into typed Dart
-fields, including the nested `ProductDimensions`, `ProductReview` and
-`ProductMeta` objects. Two details matter here:
+### The design pattern
 
-- Numbers are read `as num?` then `.toDouble()`. The API sends `"weight": 4` for
-  a whole number and `"price": 9.99` for a fraction; casting straight to `double`
-  would crash on the first.
-- Every field has a `?? fallback`, so a missing or renamed key degrades to a safe
-  default instead of throwing mid-build.
-
-**4. `screens/product_screen.dart` — where it becomes pixels.**
-`initState` kicks off the request and stores the `Future` in a field. A
-`FutureBuilder` subscribes to it and rebuilds as the request moves through its
-states, which is why all four UI states live in one place:
-
-| `snapshot` state | What the user sees |
-| --- | --- |
-| `ConnectionState.waiting` | `CircularProgressIndicator` |
-| `hasError` | Message + **Retry** button |
-| data, but empty | "No products match …" |
-| data | `GridView` of product cards |
-
-The screen never touches `http` or `jsonDecode`. It asks the service for
-products, receives typed objects, and renders them — so the networking could be
-swapped for a cache or a mock without editing a single widget.
-
-### The new design pattern
-
-Lab Activity 1 was a single `main.dart`. This activity introduces a **layered
-(separation-of-concerns) architecture**, one folder per responsibility:
+Lab Activity 1 was a single `main.dart`. This activity splits the code by
+responsibility:
 
 ```
 lib/
-├── models/      Product, ProductDimensions, ProductReview, ProductMeta
-├── providers/   ThemeProvider  (app state, carried over from Lab Activity 1)
+├── models/      Product and its nested classes
+├── providers/   ThemeProvider (app state, from Lab Activity 1)
 ├── screens/     home, product, product_details, settings
-├── services/    ProductService  (all HTTP lives here)
-├── widgets/     CustomText  (shared presentation)
+├── services/    ProductService, all the API calls
+├── widgets/     CustomText
 ├── constants.dart
 └── main.dart
 ```
 
-What this buys:
+Each file has one reason to change: a new API field is a `models/` edit, a new
+endpoint is a `services/` edit, and neither touches the UI. The model and the
+provider are plain Dart, so they can be tested without the network.
 
-- **One reason to change per file.** A new API field is a `models/` edit. A
-  changed endpoint is a `services/` edit. Neither touches the UI.
-- **Testability.** The model and provider are plain Dart with no Flutter or
-  network dependency, so they are unit-testable directly — `test/widget_test.dart`
-  covers `Product.fromJson` (including the int-vs-double case and an empty
-  payload) and `ThemeProvider` without ever hitting the network.
-- **Consistency.** All copy goes through `CustomText`, so the Poppins family and
-  sizing are applied in one place rather than repeated per `Text` widget.
-
-Two supporting packages shape the UI layer:
-
-- **`flutter_screenutil`** — `ScreenUtilInit` declares the design canvas
-  (412×715) the layout was drawn against. Sizes written as `16.sp` / `12.h` /
-  `8.r` scale proportionally, so the design holds on larger and smaller phones.
-- **`provider`** — `ThemeProvider` sits above `MaterialApp`, so the theme chosen
-  on the settings screen restyles the grid and details pages too. This is the app
-  state lesson from Lab Activity 1 reused in a real app.
+Two packages support the UI. `flutter_screenutil` sets the design size the layout
+was made for (412x715) so sizes like `16.sp` scale on other phones. `provider`
+keeps the theme above `MaterialApp` so it applies to every screen.
 
 ### Enhancements
 
-Each is marked with an `ENHANCEMENT n` comment at its implementation site.
+**1. Search bar** above the product list. Typing waits 450 ms before sending, so
+fast typing makes one request instead of one per letter, and `searchProducts()`
+calls `/products/search?q=` so the API does the filtering.
 
-**Enhancement 1 — search bar above the product list.**
-A `TextField` above the grid. Typing is debounced by 450 ms so a burst of
-keystrokes produces one request rather than one per character, then
-`ProductService.searchProducts()` calls `GET /products/search?q=…` — the filtering
-is done by the API, not in the app. Clearing the field restores the full
-catalogue. The query is passed through `Uri.encodeQueryComponent` so spaces and
-symbols cannot break the URL.
+**2. Details page** when a card is tapped. The product is passed to the screen
+directly, so it needs no second API call. It shows an image carousel, the
+discounted price against the original, the star rating, availability, the
+specifications from the nested objects, tags, and the reviews.
 
-**Enhancement 2 — details page when a card is tapped.**
-`ProductDetailsScreen` receives the whole `Product` through its constructor, so
-it renders without a second network call. It shows a swipeable image carousel with
-dot indicators, the discounted price beside the struck-through original, a
-five-star rating with half-star support, availability, the full specifications
-table drawn from the nested model objects, tags, and the customer reviews list.
-
-**Enhancement 3 — settings page holding the dark/light switch.**
-Reached from the gear icon in the AppBar. The `SwitchListTile` is bound to
-`ThemeProvider`, so one tap restyles every screen in the app.
-
-### Verification
-
-- `flutter analyze` — no issues.
-- `flutter test` — 9 tests passing (model decoding, provider state, details page
-  rendering).
-- Run on an Android Pixel 3a emulator against the live API: catalogue load,
-  search, details, settings, dark mode, empty-result state, offline error state,
-  and recovery via **Retry**.
+**3. Settings page** with the dark/light switch, bound to `ThemeProvider`.

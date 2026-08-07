@@ -8,18 +8,14 @@ import '../providers/theme_provider.dart';
 // widgets
 import '../widgets/custom_text.dart';
 
-/// ENHANCEMENT 3 - the settings page that holds the dark/light mode switch.
-///
-/// Reached from the gear icon in the home screen's AppBar. Stateless because the
-/// switch is backed by [ThemeProvider] (app state), not by any local field - so
-/// there is nothing for this widget to remember between builds.
+// ENHANCEMENT 3: settings page that holds the dark/light mode switch.
+// Stateless because the switch value comes from ThemeProvider, not from a
+// field in this widget.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // watch() subscribes this screen, so the switch and the label below update
-    // the instant the provider changes.
     final themeProvider = context.watch<ThemeProvider>();
     final scheme = Theme.of(context).colorScheme;
 
@@ -42,33 +38,25 @@ class SettingsScreen extends StatelessWidget {
           ),
           SizedBox(height: 8.h),
           Card(
-            child: Column(
-              children: [
-                // The switch itself. Toggling calls into the provider, which
-                // notifies MaterialApp and restyles every screen at once.
-                SwitchListTile(
-                  title: CustomText(
-                    text: 'Dark Mode',
-                    fontSize: 14.sp,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  subtitle: CustomText(
-                    text: themeProvider.isDark
-                        ? 'Dark theme is on'
-                        : 'Light theme is on',
-                    fontSize: 11.sp,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                  secondary: Icon(
-                    themeProvider.isDark ? Icons.dark_mode : Icons.light_mode,
-                    size: 22.sp,
-                  ),
-                  value: themeProvider.isDark,
-                  // The bool the Switch reports is ignored on purpose: the
-                  // provider is the single source of truth for the theme.
-                  onChanged: (_) => themeProvider.toggleTheme(),
-                ),
-              ],
+            child: SwitchListTile(
+              title: CustomText(
+                text: 'Dark Mode',
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ),
+              subtitle: CustomText(
+                text: themeProvider.isDark
+                    ? 'Dark theme is on'
+                    : 'Light theme is on',
+                fontSize: 11.sp,
+                color: scheme.onSurfaceVariant,
+              ),
+              secondary: Icon(
+                themeProvider.isDark ? Icons.dark_mode : Icons.light_mode,
+                size: 22.sp,
+              ),
+              value: themeProvider.isDark,
+              onChanged: (_) => themeProvider.toggleTheme(),
             ),
           ),
           SizedBox(height: 20.h),

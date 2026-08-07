@@ -15,10 +15,7 @@ import '../widgets/custom_text.dart';
 // screens
 import 'product_details_screen.dart';
 
-/// The Shop tab: a searchable grid of products fetched from the API.
-///
-/// Stateful because it owns the current search text and the in-flight Future -
-/// both ephemeral state that belongs to this one screen.
+// The Shop tab: a grid of products from the API, with a search bar on top.
 class ProductScreen extends StatefulWidget {
   const ProductScreen({super.key});
 
@@ -27,20 +24,20 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
-  /// Single service instance reused for every request from this screen.
+  // One service instance reused for every request.
   final ProductService _service = ProductService();
 
-  /// Reads the text typed into the search field (ENHANCEMENT 1).
+  // Reads the text typed into the search field (ENHANCEMENT 1).
   final TextEditingController _searchController = TextEditingController();
 
-  /// The request currently being awaited by the FutureBuilder. Reassigning this
-  /// inside setState is what triggers a refetch.
+  // The request the FutureBuilder is waiting on. Replacing it inside setState
+  // is what triggers a new fetch.
   late Future<List<Product>> _productsFuture;
 
-  /// Pending debounce timer, so a new keystroke can cancel the previous one.
+  // Pending timer, so a new keystroke cancels the previous one.
   Timer? _debounce;
 
-  /// The query the visible results belong to, used for the empty-state message.
+  // The query the shown results belong to.
   String _activeQuery = '';
 
   @override
@@ -52,17 +49,15 @@ class _ProductScreenState extends State<ProductScreen> {
 
   @override
   void dispose() {
-    // Cancel the timer first - firing after dispose would call setState on a
-    // widget that no longer exists.
+    // Cancel the timer first, otherwise it could call setState after dispose.
     _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  /// ENHANCEMENT 1 - handles typing in the search bar.
-  ///
-  /// Debounced by 450 ms so a burst of keystrokes results in one API request
-  /// instead of one per character. An empty query falls back to the full list.
+  // ENHANCEMENT 1: handles typing in the search bar. Waits 450 ms so fast
+  // typing sends one request instead of one per letter. An empty box shows the
+  // full list again.
   void _onSearchChanged(String query) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 450), () {
@@ -77,7 +72,7 @@ class _ProductScreenState extends State<ProductScreen> {
     });
   }
 
-  /// Clears the search field and restores the full catalogue immediately.
+  // Clears the box and brings back the full list.
   void _clearSearch() {
     _debounce?.cancel();
     _searchController.clear();
@@ -87,7 +82,7 @@ class _ProductScreenState extends State<ProductScreen> {
     });
   }
 
-  /// Re-runs the current request, used by the error state's retry button.
+  // Runs the request again, used by the Retry button.
   void _retry() {
     setState(() {
       _productsFuture = _activeQuery.isEmpty
@@ -96,10 +91,8 @@ class _ProductScreenState extends State<ProductScreen> {
     });
   }
 
-  /// ENHANCEMENT 2 - opens the details page for the tapped card.
-  ///
-  /// The whole Product is handed to the next screen, so the details page needs
-  /// no second network call to render.
+  // ENHANCEMENT 2: opens the details page. The product is passed along so the
+  // next screen does not need another API call.
   void _openDetails(Product product) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -114,9 +107,7 @@ class _ProductScreenState extends State<ProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -------------------------------------------------------------------
-          // ENHANCEMENT 1 - search bar above the product list
-          // -------------------------------------------------------------------
+          // ENHANCEMENT 1: search bar above the product list
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
             child: TextField(
@@ -148,13 +139,9 @@ class _ProductScreenState extends State<ProductScreen> {
             ),
           ),
 
-          // -------------------------------------------------------------------
-          // The product grid, driven by the API response
-          // -------------------------------------------------------------------
           Expanded(
-            // FutureBuilder subscribes to the request and rebuilds as it moves
-            // through waiting -> data / error, so the three UI states below are
-            // all handled in one place.
+            // FutureBuilder rebuilds as the request moves from waiting to data
+            // or error, so all the states are handled in one place.
             child: FutureBuilder<List<Product>>(
               future: _productsFuture,
               builder: (context, snapshot) {
@@ -232,16 +219,13 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 }
 
-/// One product tile in the grid.
-///
-/// Extracted from the builder so the card's layout is described in a single
-/// place and the grid callback stays readable.
+// One product tile in the grid.
 class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product, required this.onTap});
 
   final Product product;
 
-  /// Invoked when the card is tapped (ENHANCEMENT 2 - opens the details page).
+  // Called when the card is tapped (ENHANCEMENT 2).
   final VoidCallback onTap;
 
   @override
@@ -254,8 +238,7 @@ class _ProductCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
       ),
-      // InkWell gives the whole card a tap target plus a ripple, so it reads as
-      // interactive rather than as a static tile.
+      // InkWell makes the whole card tappable and adds a ripple.
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -265,8 +248,7 @@ class _ProductCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Network image with a local fallback, so a broken URL shows
-                  // a neutral placeholder instead of a red error box.
+                  // Falls back to a local image if the URL fails.
                   Image.network(
                     product.thumbnail,
                     fit: BoxFit.cover,
@@ -275,7 +257,7 @@ class _ProductCard extends StatelessWidget {
                       fit: BoxFit.cover,
                     ),
                   ),
-                  // Discount badge, only when the API reports a real discount.
+                  // Badge shown only when there is a discount.
                   if (product.discountPercentage > 0)
                     Positioned(
                       top: 6.h,
