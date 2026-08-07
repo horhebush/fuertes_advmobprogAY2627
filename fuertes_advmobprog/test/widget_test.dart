@@ -14,8 +14,6 @@ Widget testApp() {
   );
 }
 
-// The buttons sit below the fold on the small test screen, so scroll to them
-// before tapping.
 Future<void> tapButton(WidgetTester tester, String label) async {
   final finder = find.text(label);
   await tester.ensureVisible(finder);

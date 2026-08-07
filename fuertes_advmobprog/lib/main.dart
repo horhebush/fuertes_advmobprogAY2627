@@ -1,11 +1,7 @@
-// Lab Activity 1 - Ephemeral vs. App State
-// Jorge Fuertes | INF231
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-// Entry point. The providers are placed above MaterialApp so their data is not
-// destroyed when we move between screens.
+// Starts the app and registers the providers above MaterialApp.
 void main() {
   runApp(
     MultiProvider(
@@ -24,31 +20,33 @@ class ThemeModel with ChangeNotifier {
 
   bool get isDark => _isDark;
 
-  // Switches the theme and tells the listening widgets to rebuild.
+  // Switches the theme and rebuilds the listening widgets.
   void toggleTheme() {
     _isDark = !_isDark;
     notifyListeners();
   }
 }
 
-// Holds a counter as app state, so it keeps its value across screens.
+// Holds a counter as app state so it keeps its value across screens.
 class CounterModel with ChangeNotifier {
   int _count = 0;
 
   int get count => _count;
 
+  // Adds one to the counter.
   void increment() {
     _count++;
     notifyListeners();
   }
 
+  // Sets the counter back to zero.
   void reset() {
     _count = 0;
     notifyListeners();
   }
 }
 
-// Root widget. Reads the theme from app state and passes it to MaterialApp.
+// Root widget. Reads the theme from app state and gives it to MaterialApp.
 class FuertesAdvMobProg extends StatelessWidget {
   const FuertesAdvMobProg({super.key});
 
@@ -75,7 +73,7 @@ class FuertesAdvMobProg extends StatelessWidget {
   }
 }
 
-// Screen 1: the counter. Stateful because it owns the ephemeral counter.
+// Screen 1. Stateful because it owns the ephemeral counter.
 class CounterScreen extends StatefulWidget {
   const CounterScreen({super.key});
 
@@ -84,7 +82,6 @@ class CounterScreen extends StatefulWidget {
 }
 
 class _CounterScreenState extends State<CounterScreen> {
-  // Ephemeral state. Stored in this State object only.
   int _ephemeralCount = 0;
 
   // Adds one to the ephemeral counter and rebuilds this widget.
@@ -108,8 +105,7 @@ class _CounterScreenState extends State<CounterScreen> {
     );
   }
 
-  // Replaces this screen with a new copy of itself. The old State object is
-  // thrown away, which is how we can see the ephemeral counter reset.
+  // Replaces this screen with a new copy, throwing away the old State object.
   void _replaceScreen() {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const CounterScreen()),
@@ -155,8 +151,6 @@ class _CounterScreenState extends State<CounterScreen> {
                 onReset: counterModel.reset,
               ),
               const SizedBox(height: 16),
-              // One button raises both counters, so any difference in their
-              // values comes only from where each one is stored.
               SizedBox(
                 width: 320,
                 child: FilledButton.icon(
@@ -191,7 +185,7 @@ class _CounterScreenState extends State<CounterScreen> {
   }
 }
 
-// Short explanation of the two kinds of state, shown at the top of the screen.
+// Short explanation of the two kinds of state, shown above the counters.
 class _StateInfo extends StatelessWidget {
   const _StateInfo();
 
@@ -267,7 +261,7 @@ class _InfoLine extends StatelessWidget {
   }
 }
 
-// Displays one counter. Used for both so they look the same on screen.
+// Displays one counter, used for both so they look the same.
 class _CounterCard extends StatelessWidget {
   const _CounterCard({
     required this.label,
@@ -296,7 +290,6 @@ class _CounterCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Expanded so a long label does not overflow the row.
                 Expanded(
                   child: Text(
                     label,
@@ -331,7 +324,7 @@ class _CounterCard extends StatelessWidget {
   }
 }
 
-// Screen 2: the theme toggle. Stateless because the switch reads app state.
+// Screen 2. Stateless because the switch value comes from ThemeModel.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -370,7 +363,6 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // The same counter value, read from a different screen.
             Card(
               child: ListTile(
                 leading: const Icon(Icons.pin),
