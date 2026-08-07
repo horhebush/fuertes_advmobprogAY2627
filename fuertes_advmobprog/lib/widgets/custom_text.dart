@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-// Reusable Text that applies the Poppins font by default, so typography stays
-// the same across every screen.
+// Reusable Text that applies the Poppins font by default.
 class CustomText extends StatelessWidget {
   const CustomText({
     super.key,
@@ -26,7 +25,6 @@ class CustomText extends StatelessWidget {
   final String fontFamily;
   final FontStyle fontStyle;
 
-  // Left null so the text follows the active theme colour.
   final Color? color;
 
   @override

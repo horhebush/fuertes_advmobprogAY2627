@@ -5,8 +5,7 @@ import 'product_screen.dart';
 
 import '../widgets/custom_text.dart';
 
-// Shell screen that holds the bottom navigation bar. The selected tab is
-// ephemeral state, so setState is enough here.
+// Shell screen that holds the bottom navigation bar.
 class HomeScreen extends StatefulWidget {
   final String username;
   const HomeScreen({super.key, this.username = ''});
@@ -16,13 +15,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Index of the visible tab.
   int _selectedIndex = 0;
 
-  // Keeps the bar and the shown page in sync.
   final PageController _pageController = PageController();
 
-  // Release the controller so it does not leak.
   @override
   void dispose() {
     _pageController.dispose();
@@ -32,13 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Root page, so the back gesture should not pop it off the stack.
       canPop: false,
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: false,
           elevation: 2,
-          // Wordmark on the Shop tab, a plain title on the others.
           title: (_selectedIndex == 0)
               ? Image.asset(
                   'assets/images/demimart_logo.png',
@@ -63,7 +57,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         body: PageView(
-          // Swiping off so the bottom bar is the only way to change tabs.
           physics: const NeverScrollableScrollPhysics(),
           controller: _pageController,
           onPageChanged: (page) {
@@ -100,7 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Highlights the tapped icon and jumps to the matching page.
+  // Changes the selected tab.
   void _onTappedBar(int value) {
     setState(() {
       _selectedIndex = value;
@@ -109,8 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Placeholder for the tabs that are not part of this activity, so every
-// destination still leads somewhere.
+// Placeholder page for the tabs outside this activity.
 class _PlaceholderTab extends StatelessWidget {
   const _PlaceholderTab({
     required this.icon,

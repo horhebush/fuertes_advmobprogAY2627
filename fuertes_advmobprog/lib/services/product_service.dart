@@ -5,10 +5,9 @@ import 'package:http/http.dart' as http;
 import '../constants.dart';
 import '../models/product.dart';
 
-// Handles the API calls. This is the only class that knows about http and JSON,
-// so the screens just ask for a list of products.
+// Handles the API calls and returns typed products to the screens.
 class ProductService {
-  // GET $host/products
+  // Gets every product from the API.
   Future<List<Product>> getAllProducts() async {
     final response = await http.get(Uri.parse('$host/products'));
 
@@ -21,7 +20,7 @@ class ProductService {
     }
   }
 
-  // ENHANCEMENT 1: search is done by the API instead of filtering in the app.
+  // ENHANCEMENT 1: searches through the API instead of filtering in the app.
   Future<List<Product>> searchProducts(String query) async {
     final encoded = Uri.encodeQueryComponent(query);
     final response = await http.get(

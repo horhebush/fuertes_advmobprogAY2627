@@ -1,7 +1,4 @@
-// Data classes that match the JSON returned by the API. Their job is to turn an
-// untyped map into typed fields so the rest of the app never reads JSON keys.
-
-// One product from GET /products.
+// One product returned by the API.
 class Product {
   final int id;
   final String title;
@@ -51,9 +48,7 @@ class Product {
     required this.thumbnail,
   });
 
-  // Numbers are read as num first because the API sends 4 for a whole number
-  // and 9.99 for a decimal, and casting straight to double breaks on the first.
-  // The ?? defaults keep a missing field from crashing the app.
+  // Builds a product from one JSON object.
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'] ?? 0,
@@ -85,11 +80,11 @@ class Product {
     );
   }
 
-  // Price after the discount, shown on the details page.
+  // Price after the discount is applied.
   double get discountedPrice => price - (price * discountPercentage / 100);
 }
 
-// Size of the product, nested under the dimensions key.
+// Size of the product.
 class ProductDimensions {
   final double width;
   final double height;
@@ -110,7 +105,7 @@ class ProductDimensions {
   }
 }
 
-// One customer review from the reviews array.
+// One customer review.
 class ProductReview {
   final int rating;
   final String comment;
@@ -137,7 +132,7 @@ class ProductReview {
   }
 }
 
-// Extra info the API attaches to every product.
+// Extra info attached to every product.
 class ProductMeta {
   final String createdAt;
   final String updatedAt;

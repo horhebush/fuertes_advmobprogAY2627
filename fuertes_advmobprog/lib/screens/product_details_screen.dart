@@ -7,13 +7,10 @@ import '../models/product.dart';
 // widgets
 import '../widgets/custom_text.dart';
 
-// ENHANCEMENT 2: the product details page, opened by tapping a card. The
-// product comes in through the constructor so no second API call is needed.
-// Stateful only because the image carousel tracks the current page.
+// ENHANCEMENT 2: the product details page, opened by tapping a card.
 class ProductDetailsScreen extends StatefulWidget {
   const ProductDetailsScreen({super.key, required this.product});
 
-  // The product to show.
   final Product product;
 
   @override
@@ -21,10 +18,8 @@ class ProductDetailsScreen extends StatefulWidget {
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
-  // Controls the image carousel.
   final PageController _imageController = PageController();
 
-  // Which image is showing, used to highlight the matching dot.
   int _imageIndex = 0;
 
   @override
@@ -38,7 +33,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     final product = widget.product;
     final scheme = Theme.of(context).colorScheme;
 
-    // Use the thumbnail if there are no gallery images.
     final images = product.images.isNotEmpty
         ? product.images
         : [product.thumbnail];
@@ -77,7 +71,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     ),
                   ),
                 ),
-                // Dots, only when there is more than one image.
                 if (images.length > 1)
                   Positioned(
                     bottom: 10.h,
@@ -128,7 +121,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 12.h),
 
-                // Price, with the original struck through when discounted.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -210,7 +202,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 ),
                 SizedBox(height: 20.h),
 
-                // Specifications, taken from the nested model objects.
                 _SectionTitle(title: 'Specifications'),
                 SizedBox(height: 6.h),
                 _SpecRow(label: 'SKU', value: product.sku),
@@ -258,7 +249,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     color: scheme.onSurfaceVariant,
                   )
                 else
-                  // Already inside a ListView, so just map the reviews in.
                   ...product.reviews.map(
                     (r) => Card(
                       margin: EdgeInsets.only(bottom: 8.h),
@@ -272,7 +262,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                                 _StarRating(rating: r.rating.toDouble()),
                                 const Spacer(),
                                 CustomText(
-                                  // Keep just the date part of the timestamp.
                                   text: r.date.length >= 10
                                       ? r.date.substring(0, 10)
                                       : r.date,
@@ -323,8 +312,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// A label and value row in the specifications list. Shows nothing when the
-// value is empty so missing API fields do not leave blank rows.
+// A label and value row in the specifications list.
 class _SpecRow extends StatelessWidget {
   const _SpecRow({required this.label, required this.value});
 
@@ -363,7 +351,7 @@ class _SpecRow extends StatelessWidget {
   }
 }
 
-// Five stars, filled, half or empty based on the rating.
+// Star rating out of five.
 class _StarRating extends StatelessWidget {
   const _StarRating({required this.rating});
 
@@ -374,7 +362,6 @@ class _StarRating extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
-        // Decide if this star is full, half or empty.
         final filled = rating >= i + 1;
         final half = !filled && rating > i;
         return Icon(

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fuertes_advmobprog/models/product.dart';
 import 'package:fuertes_advmobprog/providers/theme_provider.dart';
 
-// A sample response copied from the API.
+// A sample response from the API.
 final sampleJson = {
   'id': 1,
   'title': 'Essence Mascara Lash Princess',
@@ -52,7 +52,6 @@ void main() {
     expect(p.stock, 99);
     expect(p.dimensions.width, 15.14);
     expect(p.reviews.first.reviewerName, 'Eleanor Collins');
-    // The API sends "weight": 4, so this has to survive an int.
     expect(p.weight, 4.0);
   });
 

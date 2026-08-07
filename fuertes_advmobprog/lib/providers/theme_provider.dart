@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
-// Holds the dark/light preference for the whole app. Registered above
-// MaterialApp so the choice survives moving between screens.
+// Holds the dark/light preference for the whole app.
 class ThemeProvider with ChangeNotifier {
   bool _isDark = false;
 
   bool get isDark => _isDark;
 
-  // Switches the theme and rebuilds the widgets listening to this provider.
+  // Switches the theme and rebuilds the listening widgets.
   void toggleTheme() {
     _isDark = !_isDark;
     notifyListeners();

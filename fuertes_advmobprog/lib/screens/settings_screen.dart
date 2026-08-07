@@ -9,8 +9,6 @@ import '../providers/theme_provider.dart';
 import '../widgets/custom_text.dart';
 
 // ENHANCEMENT 3: settings page that holds the dark/light mode switch.
-// Stateless because the switch value comes from ThemeProvider, not from a
-// field in this widget.
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
