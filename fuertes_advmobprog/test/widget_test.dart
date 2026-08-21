@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fuertes_advmobprog/models/cart.dart';
 import 'package:fuertes_advmobprog/models/product.dart';
+import 'package:fuertes_advmobprog/models/user.dart';
+import 'package:fuertes_advmobprog/services/user_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fuertes_advmobprog/providers/theme_provider.dart';
 
 // A sample response from the API.
@@ -64,6 +67,19 @@ final sampleCartJson = {
   'userId': 5,
   'totalProducts': 3,
   'totalQuantity': 12,
+};
+
+// A sample login response from the API.
+final sampleUserJson = {
+  'accessToken': 'header.payload.signature',
+  'refreshToken': 'refresh.payload.signature',
+  'id': 1,
+  'username': 'emilys',
+  'email': 'emily.johnson@x.dummyjson.com',
+  'firstName': 'Emily',
+  'lastName': 'Johnson',
+  'gender': 'female',
+  'image': 'https://dummyjson.com/icon/emilys/128',
 };
 
 void main() {
@@ -131,6 +147,61 @@ void main() {
     expect(again.id, c.id);
     expect(again.discountedTotal, c.discountedTotal);
     expect(again.products.first.title, c.products.first.title);
+  });
+
+  test('User.fromJson reads the login response', () {
+    final u = User.fromJson(sampleUserJson);
+
+    expect(u.id, 1);
+    expect(u.username, 'emilys');
+    expect(u.fullName, 'Emily Johnson');
+    expect(u.email, 'emily.johnson@x.dummyjson.com');
+    expect(u.accessToken, 'header.payload.signature');
+    expect(u.refreshToken, 'refresh.payload.signature');
+  });
+
+  test('User.fromJson uses defaults when fields are missing', () {
+    final u = User.fromJson({});
+
+    expect(u.id, 0);
+    expect(u.username, '');
+    expect(u.fullName, '');
+    expect(u.accessToken, '');
+  });
+
+  test('User.fromJson falls back to the generic token key', () {
+    final u = User.fromJson({'id': 3, 'token': 'legacy.token'});
+
+    expect(u.accessToken, 'legacy.token');
+  });
+
+  test('saveUserData then getUser keeps every field', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = UserService();
+
+    await service.saveUserData(sampleUserJson);
+    final u = await service.getUser();
+
+    expect(u.id, 1);
+    expect(u.username, 'emilys');
+    // The handout saves this under 'lasName' but reads 'lastName', which
+    // loses the surname. This asserts the key matches on both sides.
+    expect(u.lastName, 'Johnson');
+    expect(u.fullName, 'Emily Johnson');
+    expect(u.gender, 'female');
+    expect(await service.isLoggedIn(), isTrue);
+  });
+
+  test('logout clears the saved user', () async {
+    SharedPreferences.setMockInitialValues({});
+    final service = UserService();
+
+    await service.saveUserData(sampleUserJson);
+    expect(await service.isLoggedIn(), isTrue);
+
+    await service.logout();
+    expect(await service.isLoggedIn(), isFalse);
+    expect((await service.getUser()).username, '');
   });
 
   test('ThemeProvider toggles between light and dark', () {

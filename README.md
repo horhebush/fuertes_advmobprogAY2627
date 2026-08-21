@@ -12,6 +12,7 @@ Flutter project: `fuertes_advmobprog/`
 | `lab_act1` | Lab Activity 1 | Ephemeral vs. App State |
 | `lab_act2` | Lab Activity 2 | API |
 | `lab_act3` | Lab Activity 3 | API Part II (Cart) |
+| `lab_act4` | Lab Activity 4 | API Part III (Auth) |
 
 ---
 
@@ -214,3 +215,131 @@ disappears on the cart screen instead of covering the Confirm Order button.
 **3. Cart by user id.** `getCartByUserId()` calls `/carts/user/{userId}` so only
 one cart is rendered, and `addToCart()` posts a product and quantity to
 `/carts/add` and reports the total that comes back.
+
+---
+
+## Lab Activity 4: discussion
+
+The app now starts at a splash screen, asks for a login the first time, and
+remembers the user after that. The cart shows whoever is signed in.
+
+### How the model, service and screen work together
+
+`User.fromJson` builds one typed user out of a map. The same factory reads two
+different sources: the login response from the API and the values read back out
+of `SharedPreferences`. That is the reason `saveUserData()` and `getUserData()`
+use matching keys — the map that comes out of preferences has the same shape as
+the map that came from the API, so one `fromJson` covers both. `accessToken`
+falls back to `token`, because that is the older name for the same field.
+
+`UserService` holds everything to do with the account:
+
+- `loginUser()` posts the credentials to `POST $host/auth/login` and, on success,
+  calls `saveUserData()` itself before returning.
+- `saveUserData()` writes each field with `prefs.setString` / `setInt`.
+- `getUserData()` reads them back as a map, and `getUser()` wraps that in a
+  `User`.
+- `isLoggedIn()` reports whether a token is on the device.
+- `logout()` calls `prefs.clear()`.
+
+Nothing above the service touches `http`, `jsonDecode` or `SharedPreferences`.
+
+`SplashScreen` waits, asks `isLoggedIn()`, then calls `pushReplacementNamed` to
+either `/home` or `/signin`. `pushReplacement` matters: the splash screen is
+removed from the stack, so the back button cannot return to it.
+
+`SignInScreen` validates a `Form`, calls `loginUser()`, and pushes `/home`.
+Because `loginUser()` already saved the user, the screen does not save it again.
+On failure it shows the message from the API in a `SnackBar`.
+
+`ProfileScreen` is given the `User` and only lays it out. It has no request of
+its own, which is why it is a `StatelessWidget`.
+
+### Using the saved data to render the cart by user id
+
+This is where Lab Activity 3 and Lab Activity 4 meet. `CartScreen` was already
+written to take a `userId`:
+
+```dart
+const CartScreen({super.key, this.userId = defaultUserId});
+```
+
+In Lab Activity 3 that argument came from `defaultUserId` in `constants.dart`,
+because there was no user yet. Now `HomeScreen` reads the saved user once in
+`initState`:
+
+```dart
+final user = await UserService().getUser();
+```
+
+and builds its pages from it, passing `CartScreen(userId: _user!.id)` and
+`ProfileScreen(user: _user!)`. So signing in as `emilys`, who is user 1, makes
+the cart tab call `/carts/user/1` and render that cart. Changing who is signed in
+changes the cart, and no screen had to be rewritten to make that work — the
+parameter was already the seam.
+
+`HomeScreen` shows a spinner until `_user` resolves. In practice it is already
+there, since the splash screen only routes to `/home` after confirming a saved
+user, but the screen does not assume that.
+
+### The updated design pattern
+
+The folders are the same as Lab Activity 3; a third model, service and set of
+screens joined the existing ones:
+
+```
+lib/
+├── models/      Product, Cart, User
+├── providers/   ThemeProvider
+├── screens/     splash, signin, home, product, cart, detail, profile, settings
+├── services/    ProductService, CartService, UserService
+├── widgets/     CustomText
+├── constants.dart
+└── main.dart
+```
+
+What did change is where the app starts. `main.dart` used to open `HomeScreen`
+directly; `initialRoute` is now `/`, the splash screen, and the splash decides
+where to go. Named routes are what let the splash and sign-in screens redirect
+without knowing anything about each other.
+
+`SharedPreferences` is the fourth kind of state in these activities. Lab Activity
+1 had ephemeral state in `setState` and app state in a `ChangeNotifier`; both are
+gone when the process dies. The saved user survives it, which is what makes
+"still logged in after restarting the app" possible.
+
+### Three fixes to the given code
+
+The snippets in the handout do not run as printed:
+
+1. `saveUserData()` writes the surname under the key `'lasName'`, but
+   `getUserData()` reads `'lastName'`. The two never match, so the surname always
+   comes back empty — the profile would read "Emily" where the handout's own
+   sample output shows "Emily Johnson". Both sides now use `'lastName'`, and a
+   test asserts it.
+2. `loginUser()` already calls `saveUserData()`, and the handout's `_login()`
+   calls `saveUserData(response)` again straight after. The second write is
+   redundant, so it is not there.
+3. `throw Exception(response.body)` puts the raw body on screen, so a wrong
+   password reads `Login failed: {"message":"Invalid credentials"}`. The service
+   reads the `message` field instead.
+
+One thing worth being clear about: `isLoggedIn()` only checks that a token is
+stored, and the API issues it with `expiresInMins: 60`. The app therefore treats
+the user as signed in even after the token would have expired. That is what the
+activity asks for, but it is not what a real app would do — it would refresh the
+token with `refreshToken`, which is saved and currently unused.
+
+### Enhancements
+
+**1. Splash screen** with the Demi Mart mark and a spinner, which reads the token
+off the device and routes to the home screen or to sign-in.
+
+**2. Sign-in screen** with a validated `Form`, a show/hide password toggle, a
+loading state on the button, and API errors in a `SnackBar`. The fields start on
+a working account, since the API only accepts its own users.
+
+**3. Profile screen** built from `user.dart`: the avatar from `user.image`, the
+full name, the username, email, gender and user id, and a Log Out button that
+clears preferences and returns to sign-in. The same saved user drives the cart
+tab, so the cart shown is the signed-in user's.
