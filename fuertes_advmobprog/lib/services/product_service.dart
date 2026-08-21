@@ -35,4 +35,15 @@ class ProductService {
       throw Exception('Failed to search products');
     }
   }
+
+  // Gets one product by id, for the cart items that only carry an id.
+  Future<Product> getProductById(int id) async {
+    final response = await http.get(Uri.parse('$host/products/$id'));
+
+    if (response.statusCode == 200) {
+      return Product.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load the product');
+    }
+  }
 }

@@ -13,7 +13,7 @@ import '../services/product_service.dart';
 import '../widgets/custom_text.dart';
 
 // screens
-import 'product_details_screen.dart';
+import 'detail_screen.dart';
 
 // The Shop tab. Shows the products coming from the API in a grid.
 class ProductScreen extends StatefulWidget {
@@ -86,7 +86,7 @@ class _ProductScreenState extends State<ProductScreen> {
   void _openDetails(Product product) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ProductDetailsScreen(product: product),
+        builder: (_) => DetailScreen(product: product),
       ),
     );
   }

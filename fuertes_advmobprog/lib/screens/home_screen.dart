@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import 'cart_screen.dart';
 import 'product_screen.dart';
 
 import '../widgets/custom_text.dart';
@@ -40,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               : CustomText(
                   text: (_selectedIndex == 1)
-                      ? 'Chat'
+                      ? 'Cart'
                       : (_selectedIndex == 2)
                           ? 'Profile'
                           : 'Home',
@@ -66,11 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
           },
           children: const [
             ProductScreen(),
-            _PlaceholderTab(
-              icon: Icons.chat_bubble_outline,
-              label: 'Chat',
-              message: 'Messages with sellers will appear here.',
-            ),
+            // ENHANCEMENT 1: the cart replaces the old Chat tab.
+            CartScreen(),
             _PlaceholderTab(
               icon: Icons.person_outline,
               label: 'Profile',
@@ -78,16 +76,41 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+        // ENHANCEMENT 2: Chat left the bottom bar and became this button,
+        // which is hidden while the cart is on screen.
+        floatingActionButton: (_selectedIndex == 1)
+            ? null
+            : FloatingActionButton(
+                onPressed: _openChat,
+                tooltip: 'Chat',
+                child: Icon(Icons.chat, size: 24.sp),
+              ),
         bottomNavigationBar: BottomNavigationBar(
           showSelectedLabels: false, // selected item
           showUnselectedLabels: false, // unselected item
           onTap: _onTappedBar,
           items: const [
             BottomNavigationBarItem(icon: Icon(Icons.shop_2), label: 'Shop'),
-            BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+            // ENHANCEMENT 2: Cart took the slot Chat used to hold.
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart),
+              label: 'Cart',
+            ),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
           ],
           currentIndex: _selectedIndex,
+        ),
+      ),
+    );
+  }
+
+  // ENHANCEMENT 2: what the chat button does for now.
+  void _openChat() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: CustomText(
+          text: 'Messages with sellers will appear here.',
+          fontSize: 12.sp,
         ),
       ),
     );

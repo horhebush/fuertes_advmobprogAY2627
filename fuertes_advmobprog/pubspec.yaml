@@ -22,6 +22,7 @@ dev_dependencies:
 flutter:
   assets:
     - assets/
+    - assets/icons/
     - assets/images/
     # Listed explicitly because Flutter's directory globbing skips dotfiles,
     # so `- assets/` alone would not bundle the .env file.

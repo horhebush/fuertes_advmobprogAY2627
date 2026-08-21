@@ -4,23 +4,52 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 // models
 import '../models/product.dart';
 
+// services
+import '../services/cart_service.dart';
+import '../services/product_service.dart';
+
 // widgets
 import '../widgets/custom_text.dart';
 
-// ENHANCEMENT 2: the product details page, opened by tapping a card.
-class ProductDetailsScreen extends StatefulWidget {
-  const ProductDetailsScreen({super.key, required this.product});
+import '../constants.dart';
 
-  final Product product;
+// The product details page. Takes a product from the grid, or an id from the
+// cart, which is all a cart line item carries.
+class DetailScreen extends StatefulWidget {
+  const DetailScreen({super.key, this.product, this.productId})
+    : assert(
+        product != null || productId != null,
+        'Pass either a product or a productId',
+      );
+
+  final Product? product;
+  final int? productId;
 
   @override
-  State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+  State<DetailScreen> createState() => _DetailScreenState();
 }
 
-class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+class _DetailScreenState extends State<DetailScreen> {
+  final ProductService _productService = ProductService();
+
+  final CartService _cartService = CartService();
+
   final PageController _imageController = PageController();
 
   int _imageIndex = 0;
+
+  bool _adding = false;
+
+  Future<Product>? _productFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Only the cart path needs a request; the grid already has the product.
+    if (widget.product == null) {
+      _productFuture = _productService.getProductById(widget.productId!);
+    }
+  }
 
   @override
   void dispose() {
@@ -28,9 +57,102 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     super.dispose();
   }
 
+  // Runs the request again.
+  void _retry() {
+    setState(() {
+      _productFuture = _productService.getProductById(widget.productId!);
+    });
+  }
+
+  // ENHANCEMENT 3: sends this product to the cart endpoint.
+  Future<void> _addToCart(Product product) async {
+    setState(() => _adding = true);
+    try {
+      final cart = await _cartService.addToCart(defaultUserId, product.id, 1);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: CustomText(
+            text: '${product.title} added to cart. '
+                'Cart total \$${cart.discountedTotal.toStringAsFixed(2)}.',
+            fontSize: 12.sp,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: CustomText(text: '$e', fontSize: 12.sp)),
+      );
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
+    if (product != null) return _buildDetails(product);
+
+    // ENHANCEMENT 1: the cart opens this same screen by id.
+    return FutureBuilder<Product>(
+      future: _productFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(
+              title: CustomText(
+                text: 'Product Details',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(
+              title: CustomText(
+                text: 'Product Details',
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            body: Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.r),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.cloud_off, size: 48.sp),
+                    SizedBox(height: 12.h),
+                    CustomText(
+                      text: 'Error: ${snapshot.error}',
+                      fontSize: 13.sp,
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 16.h),
+                    FilledButton.icon(
+                      onPressed: _retry,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return _buildDetails(snapshot.data!);
+      },
+    );
+  }
+
+  // The page itself, once the product is available from either path.
+  Widget _buildDetails(Product product) {
     final scheme = Theme.of(context).colorScheme;
 
     final images = product.images.isNotEmpty
@@ -291,6 +413,31 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             ),
           ),
         ],
+      ),
+      // ENHANCEMENT 3: adds this product to the cart of the current user.
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 12.h),
+          child: FilledButton.icon(
+            onPressed: _adding ? null : () => _addToCart(product),
+            icon: _adding
+                ? SizedBox(
+                    width: 16.sp,
+                    height: 16.sp,
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(Icons.add_shopping_cart, size: 18.sp),
+            label: CustomText(
+              text: _adding ? 'Adding...' : 'Add to Cart',
+              fontSize: 14.sp,
+              fontWeight: FontWeight.w600,
+              color: scheme.onPrimary,
+            ),
+            style: FilledButton.styleFrom(
+              minimumSize: Size.fromHeight(46.h),
+            ),
+          ),
+        ),
       ),
     );
   }
