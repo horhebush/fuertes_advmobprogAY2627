@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "292291489066",
+    "project_id": "advanced-mobile-programm-b1110",
+    "storage_bucket": "advanced-mobile-programm-b1110.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:292291489066:android:abb8379d3b3476fbd08253",
+        "android_client_info": {
+          "package_name": "com.fuertes.fuertes_advmobprog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCjiH5A8yiQEu9bzo1yDgGb5ACdHTNo1Do"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -34,9 +34,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (loggedIn) {
-      final userData = await _userService.getUserData();
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home', arguments: userData);
+      Navigator.pushReplacementNamed(context, '/home');
     } else {
       Navigator.pushReplacementNamed(context, '/signin');
     }

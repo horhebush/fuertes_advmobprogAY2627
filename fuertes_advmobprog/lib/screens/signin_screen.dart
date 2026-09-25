@@ -4,6 +4,10 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 // services
 import '../services/user_service.dart';
 
+// utils
+import '../utils/login_type.dart';
+import '../utils/validators.dart';
+
 // widgets
 import '../widgets/custom_text.dart';
 
@@ -31,6 +35,20 @@ class _SignInScreenState extends State<SignInScreen> {
 
   bool _obscure = true;
 
+  // ENHANCEMENT 2: which backend the Log In button talks to.
+  LoginType _backend = LoginType.dummyJson;
+
+  bool get _isFirebase => _backend == LoginType.firebase;
+
+  // Swaps the backend and the credentials that go with it.
+  void _switchBackend(LoginType backend) {
+    setState(() {
+      _backend = backend;
+      _usernameController.text = _isFirebase ? '' : 'emilys';
+      _passwordController.text = _isFirebase ? '' : 'emilyspass';
+    });
+  }
+
   @override
   void dispose() {
     _usernameController.dispose();
@@ -49,18 +67,25 @@ class _SignInScreenState extends State<SignInScreen> {
     });
 
     try {
-      // loginUser already saves the user, so there is no second save here.
-      final response = await userService.loginUser(
-        _usernameController.text,
-        _passwordController.text,
-      );
+      if (_isFirebase) {
+        await userService.signIn(
+          email: _usernameController.text.trim(),
+          password: _passwordController.text,
+        );
+      } else {
+        // loginUser already saves the user, so there is no second save here.
+        await userService.loginUser(
+          _usernameController.text,
+          _passwordController.text,
+        );
+      }
 
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
 
-      Navigator.pushReplacementNamed(context, '/home', arguments: response);
+      Navigator.pushReplacementNamed(context, '/home');
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -69,13 +94,19 @@ class _SignInScreenState extends State<SignInScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: CustomText(
-            text: 'Login failed: ${e.toString().replaceFirst('Exception: ', '')}',
+            text: 'Login failed: ${_message(e)}',
             fontSize: 12.sp,
           ),
         ),
       );
     }
   }
+
+  // Strips the bracketed error code Firebase puts in front of its messages.
+  String _message(Object error) => error.toString().replaceFirst(
+    RegExp(r'^\[[^\]]*\]\s*|^Exception:\s*'),
+    '',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -109,26 +140,55 @@ class _SignInScreenState extends State<SignInScreen> {
                     color: scheme.onSurfaceVariant,
                     textAlign: TextAlign.center,
                   ),
-                  SizedBox(height: 28.h),
+                  SizedBox(height: 20.h),
+
+                  // ENHANCEMENT 2: the same screen drives either backend.
+                  SegmentedButton<LoginType>(
+                    segments: [
+                      ButtonSegment(
+                        value: LoginType.dummyJson,
+                        label: CustomText(text: 'DummyJSON', fontSize: 11.sp),
+                        icon: Icon(Icons.cloud_outlined, size: 16.sp),
+                      ),
+                      ButtonSegment(
+                        value: LoginType.firebase,
+                        label: CustomText(text: 'Firebase', fontSize: 11.sp),
+                        icon: Icon(
+                          Icons.local_fire_department_outlined,
+                          size: 16.sp,
+                        ),
+                      ),
+                    ],
+                    selected: {_backend},
+                    onSelectionChanged: (selection) =>
+                        _switchBackend(selection.first),
+                  ),
+                  SizedBox(height: 20.h),
 
                   TextFormField(
                     controller: _usernameController,
                     textInputAction: TextInputAction.next,
+                    keyboardType: _isFirebase
+                        ? TextInputType.emailAddress
+                        : TextInputType.text,
                     style: TextStyle(fontFamily: 'Poppins', fontSize: 14.sp),
                     decoration: InputDecoration(
-                      labelText: 'Username',
+                      labelText: _isFirebase ? 'Email address' : 'Username',
                       labelStyle: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 13.sp,
                       ),
-                      prefixIcon: Icon(Icons.person_outline, size: 20.sp),
+                      prefixIcon: Icon(
+                        _isFirebase ? Icons.mail_outline : Icons.person_outline,
+                        size: 20.sp,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
-                    validator: (value) => (value == null || value.trim().isEmpty)
-                        ? 'Enter your username'
-                        : null,
+                    validator: (value) => _isFirebase
+                        ? validateEmail(value)
+                        : validateRequired(value, 'username'),
                   ),
                   SizedBox(height: 14.h),
 
@@ -181,6 +241,20 @@ class _SignInScreenState extends State<SignInScreen> {
                             color: scheme.onPrimary,
                           ),
                   ),
+
+                  // Only Firebase lets the app create accounts of its own.
+                  if (_isFirebase)
+                    TextButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.pushNamed(context, '/signup'),
+                      child: CustomText(
+                        text: 'Create an account',
+                        fontSize: 13.sp,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.primary,
+                      ),
+                    ),
                 ],
               ),
             ),

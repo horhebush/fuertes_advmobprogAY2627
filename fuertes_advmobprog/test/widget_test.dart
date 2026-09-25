@@ -7,6 +7,8 @@ import 'package:fuertes_advmobprog/models/user.dart';
 import 'package:fuertes_advmobprog/services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fuertes_advmobprog/providers/theme_provider.dart';
+import 'package:fuertes_advmobprog/utils/login_type.dart';
+import 'package:fuertes_advmobprog/utils/validators.dart';
 
 // A sample response from the API.
 final sampleJson = {
@@ -211,5 +213,81 @@ void main() {
     provider.toggleTheme();
     expect(provider.isDark, isTrue);
     expect(provider.darkTheme.brightness, Brightness.dark);
+  });
+
+  // ENHANCEMENT 2: the fields a Firebase account adds on top of the API one.
+  test('User.fromJson reads a Firestore profile', () {
+    final u = User.fromJson({
+      'uid': 'abc123',
+      'username': 'jorge',
+      'email': 'jorge@example.com',
+      'firstName': 'Jorge',
+      'lastName': 'Fuertes',
+      'age': 21,
+      'contactNo': '09171234567',
+    });
+
+    expect(u.uid, 'abc123');
+    expect(u.age, 21);
+    expect(u.contactNo, '09171234567');
+    expect(u.fullName, 'Jorge Fuertes');
+    // A Firebase account has no dummyJSON id or avatar.
+    expect(u.id, 0);
+    expect(u.image, '');
+  });
+
+  test('toFirestore keeps only the profile fields', () {
+    final u = User.fromJson(sampleUserJson);
+
+    expect(u.toFirestore().keys, isNot(contains('accessToken')));
+    expect(u.toFirestore()['username'], 'emilys');
+  });
+
+  test('login type round trips and defaults to dummyJSON', () async {
+    SharedPreferences.setMockInitialValues({});
+    expect(await readLoginType(), LoginType.dummyJson);
+
+    await saveLoginType(LoginType.firebase);
+    expect(await readLoginType(), LoginType.firebase);
+
+    await saveLoginType(LoginType.dummyJson);
+    expect(await readLoginType(), LoginType.dummyJson);
+  });
+
+  test('email validator accepts an address and rejects rubbish', () {
+    expect(validateEmail('jorge@example.com'), isNull);
+    expect(validateEmail(''), isNotNull);
+    expect(validateEmail('jorge@'), isNotNull);
+    expect(validateEmail('jorge.example.com'), isNotNull);
+  });
+
+  test('age validator holds the range', () {
+    expect(validateAge('21'), isNull);
+    expect(validateAge('12'), isNotNull);
+    expect(validateAge('121'), isNotNull);
+    expect(validateAge('abc'), isNotNull);
+  });
+
+  test('contact number validator wants eleven digits', () {
+    expect(validateContactNo('09171234567'), isNull);
+    expect(validateContactNo('0917123456'), isNotNull);
+    expect(validateContactNo('0917-123-4567'), isNotNull);
+  });
+
+  test('password validator wants length, a letter and a number', () {
+    expect(validatePassword('demimart1'), isNull);
+    expect(validatePassword('short1'), isNotNull);
+    expect(validatePassword('allletters'), isNotNull);
+    expect(validatePassword('12345678'), isNotNull);
+  });
+
+  test('confirm password validator compares the two boxes', () {
+    expect(validateConfirmPassword('demimart1', 'demimart1'), isNull);
+    expect(validateConfirmPassword('demimart2', 'demimart1'), isNotNull);
+  });
+
+  test('required validator names the field it is missing', () {
+    expect(validateRequired('jorge', 'username'), isNull);
+    expect(validateRequired('   ', 'username'), contains('username'));
   });
 }

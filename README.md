@@ -13,6 +13,7 @@ Flutter project: `fuertes_advmobprog/`
 | `lab_act2` | Lab Activity 2 | API |
 | `lab_act3` | Lab Activity 3 | API Part II (Cart) |
 | `lab_act4` | Lab Activity 4 | API Part III (Auth) |
+| `lab_act5` | Lab Activity 5 | Firebase |
 
 ---
 
@@ -343,3 +344,117 @@ a working account, since the API only accepts its own users.
 full name, the username, email, gender and user id, and a Log Out button that
 clears preferences and returns to sign-in. The same saved user drives the cart
 tab, so the cart shown is the signed-in user's.
+
+---
+
+## Lab Activity 5: discussion
+
+The app keeps the dummyJSON login from Lab Activity 4 and adds Firebase next to
+it. The sign-in screen has a segmented button that picks which one to use, so
+both workflows are in the same build and can be compared side by side.
+
+### The two workflows, from signIn to signUp
+
+**dummyJSON.** `loginUser()` posts the username and password to
+`POST $host/auth/login`. The API answers with the user and two tokens.
+`saveUserData()` writes every field into `SharedPreferences`, and from then on
+`isLoggedIn()` just checks whether a token string is sitting on the device.
+There is no sign-up at all: dummyJSON only accepts accounts it already has, so
+`emilys / emilyspass` is prefilled. `POST /users/add` exists but it is a fake
+write — the response echoes the object back and nothing is stored, so the
+account it "creates" cannot be logged into afterwards. That is the hard limit of
+the dummyJSON workflow, and the reason Enhancement 2 needs a real backend.
+
+**Firebase.** `signIn()` calls `signInWithEmailAndPassword`. There is no token
+to store by hand: the SDK keeps the ID token itself, writes it to disk, and
+refreshes it in the background about every hour, so `isLoggedIn()` only has to
+ask whether `firebaseAuth.currentUser` is null. Sign-up is real.
+`createAccount()` calls `createUserWithEmailAndPassword`, which registers the
+account on the server and signs it in straight away.
+
+The sign-up form collects seven fields, and this is where Firebase Auth runs
+out of room — an Auth record holds an email, a password, a `displayName` and a
+`photoURL`, and nothing else. There is nowhere to put age or contact number. So
+`SignUpScreen` does three things in order:
+
+1. `createAccount()` — makes the Auth record and gets a `uid`.
+2. `saveUserProfile()` — writes `users/{uid}` in Cloud Firestore with the first
+   name, last name, age, contact number, username and email.
+3. `updateUsername()` — sets `displayName` on the Auth record, so the name is on
+   both sides.
+
+The order matters. `updateUsername()` also edits the Firestore document, and a
+document has to exist before it can be updated.
+
+Firestore is not in the handout. It is here because Enhancement 2 asks for age
+and `contactNo`, and Firebase Auth genuinely cannot store them. The alternative
+was to keep those two fields in `SharedPreferences`, but then the profile would
+only exist on one phone, which defeats the point of moving the account to a
+server.
+
+### The main idea behind UserService
+
+`UserService` is the only class in the app that knows an account can come from
+two different places. Every screen calls the same methods — `getUserData()`,
+`getUser()`, `isLoggedIn()`, `logout()` — and never asks which backend answered.
+
+The switch is one saved value. `LoginType` is an enum with two cases, written to
+`SharedPreferences` by `loginUser()` and by `signIn()` as they succeed, and read
+back by the three methods whose behaviour has to differ:
+
+| | dummyJSON | Firebase |
+| --- | --- | --- |
+| `getUserData()` | reads `SharedPreferences` | reads the Auth record plus `users/{uid}` |
+| `isLoggedIn()` | is a token stored? | is `currentUser` non-null? |
+| `logout()` | `prefs.clear()` | `signOut()`, then `prefs.clear()` |
+
+Both branches return the same shape: a `Map<String, dynamic>` that
+`User.fromJson` can read. That is why `user.dart` only needed three new fields
+(`uid`, `age`, `contactNo`) instead of a second model — the Firestore document
+uses the same keys the API response already used, so one factory still covers
+both sources. On the profile card the extra rows hide themselves when a value is
+empty, so a dummyJSON account shows gender and a numeric id while a Firebase
+account shows age, contact number and the `uid`, from the same widget.
+
+Keeping the branch inside the service is what makes the rest of the app boring.
+`SplashScreen`, `HomeScreen`, `SettingsScreen` and `CartScreen` were not changed
+for Firebase at all.
+
+### What Firebase actually buys this app
+
+- **Sign-up works.** The app can create its own accounts, which dummyJSON never
+  allowed. That alone is the difference between a demo login and a real one.
+- **Passwords are never ours.** They go straight to Firebase over HTTPS and are
+  stored hashed on Google's side. The app never sees, holds or saves one.
+- **Token handling disappears.** No `accessToken`, no `refreshToken`, no expiry
+  to check. The SDK refreshes silently, so a session survives a restart without
+  any of the code Lab Activity 4 needed.
+- **The account can be managed.** Change the username, change the password,
+  delete the account — all three work, and the last two re-authenticate with
+  `EmailAuthProvider.credential` first, because Firebase refuses sensitive
+  operations on a stale sign-in.
+- **The profile is server-side.** It follows the account to any device, and
+  `firestore.rules` restricts each document to its owner:
+
+  ```
+  match /users/{uid} {
+    allow read, write: if request.auth != null && request.auth.uid == uid;
+  }
+  ```
+
+  A rule like that has no equivalent in the dummyJSON version, where everything
+  lived unprotected in `SharedPreferences` on the phone.
+
+### Notes on the given code
+
+The handout declares `final FirebaseAuth firebaseAuth = FirebaseAuth.instance;`
+as a field. Reading `FirebaseAuth.instance` before `Firebase.initializeApp()`
+throws, and a field initialiser runs the moment `UserService()` is constructed —
+which the dummyJSON path and the unit tests both do without Firebase running. It
+is a getter here instead, so it is only touched when a Firebase method is
+actually called.
+
+`firebase_auth` also exports a class called `User`, which collides with the
+`User` model from Lab Activity 4. In `user_service.dart` the model is imported
+as `models.User` so both names can coexist.
+

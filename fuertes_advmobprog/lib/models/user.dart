@@ -1,4 +1,4 @@
-// The signed-in user, as returned by the auth endpoint.
+// The signed-in user, as returned by the auth endpoint or by Firestore.
 class User {
   final int id;
   final String username;
@@ -10,6 +10,11 @@ class User {
   final String accessToken;
   final String refreshToken;
 
+  // ENHANCEMENT 2: only a Firebase account carries these three.
+  final String uid;
+  final int age;
+  final String contactNo;
+
   User({
     required this.id,
     required this.username,
@@ -20,9 +25,12 @@ class User {
     required this.image,
     required this.accessToken,
     required this.refreshToken,
+    this.uid = '',
+    this.age = 0,
+    this.contactNo = '',
   });
 
-  // Builds a user from the login response or from saved preferences.
+  // Builds a user from the login response, from Firestore, or from preferences.
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] ?? 0,
@@ -35,6 +43,9 @@ class User {
       // The API calls it accessToken; older responses only had token.
       accessToken: json['accessToken'] ?? json['token'] ?? '',
       refreshToken: json['refreshToken'] ?? '',
+      uid: json['uid'] ?? '',
+      age: json['age'] ?? 0,
+      contactNo: json['contactNo'] ?? '',
     );
   }
 
@@ -50,6 +61,21 @@ class User {
       'image': image,
       'accessToken': accessToken,
       'refreshToken': refreshToken,
+      'uid': uid,
+      'age': age,
+      'contactNo': contactNo,
+    };
+  }
+
+  // The fields that belong in the Firestore profile document.
+  Map<String, dynamic> toFirestore() {
+    return {
+      'username': username,
+      'email': email,
+      'firstName': firstName,
+      'lastName': lastName,
+      'age': age,
+      'contactNo': contactNo,
     };
   }
 
