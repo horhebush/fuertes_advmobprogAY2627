@@ -5,6 +5,7 @@ import 'cart_screen.dart';
 import 'product_screen.dart';
 import 'profile_screen.dart';
 
+import '../constants.dart';
 import '../models/user.dart';
 import '../services/user_service.dart';
 import '../widgets/custom_text.dart';
@@ -91,8 +92,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
                 children: [
                   const ProductScreen(),
-                  // ENHANCEMENT 3: the cart of whoever signed in.
-                  CartScreen(userId: _user!.id),
+                  // ENHANCEMENT 3: the cart of whoever signed in. A Firebase
+                  // account has no dummyJSON id, and /carts/user/0 is a 404,
+                  // so it falls back to the sample cart.
+                  CartScreen(
+                    userId: _user!.id == 0 ? defaultUserId : _user!.id,
+                  ),
                   ProfileScreen(user: _user!),
                 ],
               ),

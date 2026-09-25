@@ -445,6 +445,26 @@ for Firebase at all.
   A rule like that has no equivalent in the dummyJSON version, where everything
   lived unprotected in `SharedPreferences` on the phone.
 
+### Where the two backends do not line up
+
+The cart is a dummyJSON feature and it is keyed by a numeric user id. A Firebase
+account does not have one — `User.id` is `0` for it — and
+`GET /carts/user/0` answers `404 {"message":"User with id '0' not found"}`, which
+`CartService.getCartByUserId` turns into `Exception: Failed to load the cart`.
+
+`HomeScreen` therefore falls back to `defaultUserId` when the signed-in account
+has no dummyJSON id:
+
+```dart
+CartScreen(userId: _user!.id == 0 ? defaultUserId : _user!.id),
+```
+
+That is the same constant Lab Activity 3 used before there was any login at all.
+It is a demo cart rather than the Firebase user's own, because dummyJSON has no
+way to own a cart for an account it has never heard of. Giving a Firebase account
+a real cart would mean moving the cart into Firestore too, which is past what this
+activity asks for.
+
 ### Notes on the given code
 
 The handout declares `final FirebaseAuth firebaseAuth = FirebaseAuth.instance;`

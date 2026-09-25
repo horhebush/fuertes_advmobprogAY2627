@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:fuertes_advmobprog/constants.dart';
 import 'package:fuertes_advmobprog/models/cart.dart';
 import 'package:fuertes_advmobprog/models/product.dart';
 import 'package:fuertes_advmobprog/models/user.dart';
@@ -289,5 +290,22 @@ void main() {
   test('required validator names the field it is missing', () {
     expect(validateRequired('jorge', 'username'), isNull);
     expect(validateRequired('   ', 'username'), contains('username'));
+  });
+
+  // A Firebase account has no dummyJSON id, and /carts/user/0 answers 404,
+  // so the cart tab has to fall back instead of asking for user 0.
+  test('a Firebase user has no dummyJSON id to hang a cart on', () {
+    final firebaseUser = User.fromJson({
+      'uid': 'abc123',
+      'username': 'jorge',
+      'email': 'jorge@example.com',
+    });
+    expect(firebaseUser.id, 0);
+
+    final cartOwner = firebaseUser.id == 0 ? defaultUserId : firebaseUser.id;
+    expect(cartOwner, defaultUserId);
+
+    final apiUser = User.fromJson(sampleUserJson);
+    expect(apiUser.id == 0 ? defaultUserId : apiUser.id, 1);
   });
 }
