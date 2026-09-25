@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'cart_screen.dart';
+import 'chat_screen.dart';
 import 'product_screen.dart';
 import 'profile_screen.dart';
 
@@ -129,15 +130,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ENHANCEMENT 2: what the chat button does for now.
+  // The chat button now opens the chat list. Only a Firebase account has a
+  // uid to send messages from, so a dummyJSON session is turned away here.
   void _openChat() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: CustomText(
-          text: 'Messages with sellers will appear here.',
-          fontSize: 12.sp,
+    if (_user!.uid.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: CustomText(
+            text: 'Sign in with a Firebase account to use the chat.',
+            fontSize: 12.sp,
+          ),
         ),
-      ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ChatScreen()),
     );
   }
 

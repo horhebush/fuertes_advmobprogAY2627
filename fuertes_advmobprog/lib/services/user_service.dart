@@ -201,7 +201,8 @@ class UserService {
 
   // ENHANCEMENT 2: the sign-up fields Firebase Auth has nowhere to put.
   Future<void> saveUserProfile(models.User user) async {
-    await _profileDoc(currentUser!.uid).set(user.toFirestore());
+    final uid = currentUser!.uid;
+    await _profileDoc(uid).set({...user.toFirestore(), 'uid': uid});
   }
 
   // One profile document per account, keyed by the Firebase uid.

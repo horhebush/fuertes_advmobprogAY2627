@@ -14,6 +14,7 @@ Flutter project: `fuertes_advmobprog/`
 | `lab_act3` | Lab Activity 3 | API Part II (Cart) |
 | `lab_act4` | Lab Activity 4 | API Part III (Auth) |
 | `lab_act5` | Lab Activity 5 | Firebase |
+| `lab_act6` | Lab Activity 6 | Firebase Part II (Chat) |
 
 ---
 
@@ -477,4 +478,125 @@ actually called.
 `firebase_auth` also exports a class called `User`, which collides with the
 `User` model from Lab Activity 4. In `user_service.dart` the model is imported
 as `models.User` so both names can coexist.
+
+---
+
+## Lab Activity 6: discussion
+
+**Topic: Firebase Part II**
+
+The chat button in the corner of the home screen used to show a SnackBar. It now
+opens a list of everyone who has signed up, and tapping a name opens a live
+conversation with them. Nothing in it polls: Firestore pushes.
+
+### How a conversation is stored
+
+Two collections do the whole job.
+
+`users/{uid}` already existed from Lab Activity 5, one document per account.
+`ChatService.getUsersStream()` listens to that collection and turns each snapshot
+into a list of maps.
+
+`chat_rooms/{roomId}/messages/{messageId}` is new. A message holds `senderId`,
+`senderEmail`, `receiverId`, `message` and a `timestamp`, which is exactly what
+`MessageModel` maps.
+
+The interesting part is `roomId`. Two people must land in the same room no matter
+who opens the conversation, so the id is built from both uids, sorted:
+
+```dart
+String chatRoomId(String userId, String otherUserId) {
+  final ids = [userId, otherUserId]..sort();
+  return ids.join('_');
+}
+```
+
+Sorting is what makes it symmetric — without it, A→B and B→A would be two
+different rooms and neither person would see the other's messages. A unit test
+pins that behaviour down.
+
+### Streams instead of requests
+
+Lab Activity 4 fetched with `http.get` and a `FutureBuilder`: ask once, draw once,
+add a Retry button for when it fails. The chat uses `StreamBuilder` over
+`.snapshots()` instead, which is a subscription rather than a request. Firestore
+keeps the socket open and pushes a new `QuerySnapshot` whenever the collection
+changes, so a message typed on one phone appears on the other without either
+side asking again. It is the first screen in this project that is not driven by
+a button press.
+
+`getMessage()` orders by `timestamp` ascending so the newest message is last, and
+the list scrolls to the bottom after each frame.
+
+### The three enhancements
+
+**1. Chat list.** `getUsersStream()` filters the current account out with
+`where((doc) => doc.id != currentUid)`, so nobody is offered a chat with
+themselves. Each entry is mapped to `{...doc.data(), 'uid': doc.id}` — taking the
+uid from the document id rather than the stored field means a profile written
+before Activity 6 still works.
+
+**2. Search.** The box above the list filters on first name, last name, username
+and email at once, by joining those four fields into one lowercase string and
+testing `contains`. Filtering happens on the list the stream already delivered,
+so typing costs no reads and the results update as fast as the keystrokes.
+
+**3. Detail screen.** Messages are bubbles: mine on the right in the primary
+colour with the corner squared off on that side, theirs on the left in the
+surface colour. Each bubble fades and slides in over 260 ms with
+`TweenAnimationBuilder`. While a message is in flight the send button swaps to a
+spinner through an `AnimatedSwitcher` and the bubble's footer reads "sending…";
+once Firestore has it, that becomes the timestamp and a double tick.
+
+### One fix to the previous activity
+
+`getUidByEmail()` and the detail screen both read `uid` off the profile document,
+but Activity 5's `toFirestore()` never stored it — the uid was only the document
+id. `saveUserProfile()` now writes it into the document as well.
+
+### Where this deviates from the handout
+
+The handout says to put Firestore in **Production mode** and then set the rules to
+`allow read, write: if true`, which is the opposite of production: it lets anyone
+who knows the project id read and rewrite every profile and every private
+message. Activity 5 shipped rules that lock a profile to its owner and the
+discussion above argued for them, so opening the database now would undo that.
+
+`firestore.rules` instead grants what the two screens actually need:
+
+```
+match /users/{uid} {
+  allow read: if request.auth != null;
+  allow write: if request.auth != null && request.auth.uid == uid;
+}
+
+match /chat_rooms/{roomId}/messages/{messageId} {
+  allow read: if request.auth != null
+    && request.auth.uid in roomId.split('_');
+  allow create: if request.auth != null
+    && request.auth.uid in roomId.split('_')
+    && request.resource.data.senderId == request.auth.uid;
+  allow update, delete: if false;
+}
+```
+
+Reading the directory is open to any signed-in account, because the chat list
+cannot work otherwise. Everything else is narrowed: a profile is writable only by
+its owner, a room is readable only by the two people named in its id, a message
+can only be created by the account it claims to come from, and messages cannot be
+edited or deleted at all. The sorted-uid room id is what makes the membership
+check possible straight from `roomId.split('_')`.
+
+Two smaller departures. The handout's `chat_service.dart` reads
+`collection("Users")` with a capital U while Activity 5 writes to `users` —
+Firestore collection names are case-sensitive, so the given code would have
+listened to an empty collection and shown no one. It is lowercase here. And the
+handout's version declares `_firestore` and `_firebaseAuth` as fields initialised
+to `.instance`, which throws when `ChatService()` is constructed before
+`Firebase.initializeApp()`; they are getters here, the same fix `UserService`
+needed in Activity 5.
+
+The handout also reworks `loginUser` to take a `bool useFirebase = true`
+parameter. That is a second way to express the switch Activity 5 already built as
+`LoginType`, so the existing one is kept rather than having two.
 

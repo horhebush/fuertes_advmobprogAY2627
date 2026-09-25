@@ -67,9 +67,11 @@ class User {
     };
   }
 
-  // The fields that belong in the Firestore profile document.
+  // The fields that belong in the Firestore profile document. uid is stored
+  // as well as being the document id, because the chat list reads it back.
   Map<String, dynamic> toFirestore() {
     return {
+      'uid': uid,
       'username': username,
       'email': email,
       'firstName': firstName,

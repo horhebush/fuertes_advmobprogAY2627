@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fuertes_advmobprog/constants.dart';
 import 'package:fuertes_advmobprog/models/cart.dart';
+import 'package:fuertes_advmobprog/models/message.dart';
+import 'package:fuertes_advmobprog/services/chat_service.dart';
 import 'package:fuertes_advmobprog/models/product.dart';
 import 'package:fuertes_advmobprog/models/user.dart';
 import 'package:fuertes_advmobprog/services/user_service.dart';
@@ -307,5 +310,54 @@ void main() {
 
     final apiUser = User.fromJson(sampleUserJson);
     expect(apiUser.id == 0 ? defaultUserId : apiUser.id, 1);
+  });
+
+  // The chat list reads uid back off the profile document, so it has to be
+  // written into it and not only used as the document id.
+  test('toFirestore carries the uid the chat list needs', () {
+    final u = User.fromJson({'uid': 'abc123', 'username': 'jorge'});
+    expect(u.toFirestore()['uid'], 'abc123');
+  });
+
+  test('a chat room id is the same for both people in it', () {
+    final service = ChatService();
+
+    expect(service.chatRoomId('aaa', 'bbb'), 'aaa_bbb');
+    // Sorting is what makes it symmetric.
+    expect(
+      service.chatRoomId('bbb', 'aaa'),
+      service.chatRoomId('aaa', 'bbb'),
+    );
+    // Two different pairs never collide.
+    expect(
+      service.chatRoomId('aaa', 'ccc'),
+      isNot(service.chatRoomId('aaa', 'bbb')),
+    );
+  });
+
+  test('MessageModel round trips through the Firestore map', () {
+    final stamp = Timestamp.fromDate(DateTime.utc(2026, 9, 25, 8, 30));
+    final message = MessageModel(
+      senderId: 'aaa',
+      senderEmail: 'jorge@example.com',
+      receiverId: 'bbb',
+      message: 'hello there',
+      timestamp: stamp,
+    );
+
+    final again = MessageModel.fromMap(message.toMap());
+
+    expect(again.senderId, 'aaa');
+    expect(again.receiverId, 'bbb');
+    expect(again.message, 'hello there');
+    expect(again.timestamp, stamp);
+  });
+
+  test('MessageModel survives a document with missing fields', () {
+    final m = MessageModel.fromMap({});
+
+    expect(m.senderId, '');
+    expect(m.message, '');
+    expect(m.timestamp, isA<Timestamp>());
   });
 }
